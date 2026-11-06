@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import re
 from dataclasses import dataclass, field
 
@@ -28,6 +29,9 @@ class FilePatch:
     old_path: str | None
     new_path: str | None
     hunks: list[Hunk] = field(default_factory=list)
+    # Hunks of each section, in input order, when the diff named this path in
+    # several sections (see :func:`parse_diff`); empty for a single section.
+    sections: list[list[Hunk]] = field(default_factory=list, repr=False)
 
     @property
     def path(self) -> str:
@@ -165,14 +169,39 @@ def apply_file_patch_lines(
     """Apply the hunks of ``fp`` to ``source``; see :func:`apply_file_patch`.
 
     Returns the pre- and post-patch text and the changed line numbers, or None
-    if some hunk matches nowhere.
+    if some hunk matches nowhere. When the file came in several sections whose
+    hunks do not apply together (they overlap, as when each section was written
+    against the file left by the one before), the sections are applied one after
+    the other, as ``git apply`` does, and the changed lines are read from a line
+    diff (difflib) of the original and the final text.
     """
+    applied = _apply_hunks(source, fp.hunks, max_offset)
+    if applied is not None or len(fp.sections) < 2:
+        return applied
+    text = source
+    for hunks in fp.sections:
+        step = _apply_hunks(text, hunks, max_offset)
+        if step is None:
+            return None
+        text = step.post
+    removed: list[int] = []
+    added: list[int] = []
+    sm = difflib.SequenceMatcher(None, source.splitlines(), text.splitlines(), autojunk=False)
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag in ("replace", "delete"):
+            removed += range(i1 + 1, i2 + 1)
+        if tag in ("replace", "insert"):
+            added += range(j1 + 1, j2 + 1)
+    return AppliedFile(source, text, removed, added)
+
+
+def _apply_hunks(source: str, hunks: list[Hunk], max_offset: int | None) -> AppliedFile | None:
     src = source.splitlines()
     out: list[str] = []
     removed: list[int] = []
     added: list[int] = []
     pos = 0
-    for h in fp.hunks:
+    for h in hunks:
         old = [t for tag, t in h.lines if tag != "+"]
         want = min(max(h.old_start - 1, pos), len(src))
         limit = len(src) if max_offset is None else max_offset
@@ -344,13 +373,18 @@ def _merge_sections(files: list[FilePatch]) -> list[FilePatch]:
     """One entry per path: the hunks of later sections that name an earlier path
     are added to the first section for it and sorted by original line, so a
     candidate that edits one file in several ``diff --git`` sections is scored
-    and applied as one file patch. The first section's old and new paths are kept."""
+    and applied as one file patch. The first section's old and new paths are kept,
+    and the hunks of each section are kept in ``sections`` for
+    :func:`apply_file_patch_lines`."""
     merged: dict[str, FilePatch] = {}
     for f in files:
         first = merged.get(f.path)
         if first is None:
             merged[f.path] = f
         else:
+            if not first.sections:
+                first.sections = [list(first.hunks)]
+            first.sections.append(list(f.hunks))
             first.hunks.extend(f.hunks)
             first.hunks.sort(key=lambda h: h.old_start)
     return list(merged.values())

@@ -66,3 +66,20 @@ def test_sources_path_outside_the_instance_directory_is_not_read(tmp_path):
     assert post_patch_sources(parse_diff(d), base) is None
     d = f"--- a/{tmp_path}/outside.py\n+++ b/{tmp_path}/outside.py\n@@ -1 +1 @@\n-a = 1\n+a = 2\n"
     assert post_patch_sources(parse_diff(d), base) is None
+
+
+def test_overlapping_sections_apply_one_after_the_other(tmp_path):
+    # the second section edits line 3 with the first edit already in its context,
+    # as when sections are written one after another against the updated file
+    (tmp_path / "x.py").write_text("a = 1\nb = 1\nc = 1\nd = 1\n")
+    d = (
+        "diff --git a/x.py b/x.py\n--- a/x.py\n+++ b/x.py\n"
+        "@@ -1,3 +1,3 @@\n a = 1\n-b = 1\n+b = 2\n c = 1\n"
+        "diff --git a/x.py b/x.py\n--- a/x.py\n+++ b/x.py\n"
+        "@@ -2,3 +2,3 @@\n b = 2\n-c = 1\n+c = 2\n d = 1\n"
+    )
+    applied = post_patch_sources(parse_diff(d), tmp_path)
+    assert applied is not None
+    f = applied["x.py"]
+    assert f.post == "a = 1\nb = 2\nc = 2\nd = 1\n"
+    assert f.removed_lines == [2, 3] and f.added_lines == [2, 3]
