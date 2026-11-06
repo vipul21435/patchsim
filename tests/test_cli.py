@@ -207,3 +207,19 @@ def test_cli_include_system(demo_dir, tmp_path):
     assert main(["score", *args, "--include-system", "sys-b", "--out", str(out)]) == 0
     assert {json.loads(x)["system"] for x in out.read_text().splitlines()} == {"sys-b"}
     assert main(["score", *args, "--include-system", "nobody"]) == 1
+
+
+def test_within_instance_auc_in_analysis():
+    from patchsim.analysis import within_instance_auc
+
+    rows = [
+        {"instance_id": "o__a-1", "repo": "o__a", "chrf": 0.9, "resolved": True},
+        {"instance_id": "o__a-1", "repo": "o__a", "chrf": 0.4, "resolved": False},
+        {"instance_id": "o__b-1", "repo": "o__b", "chrf": 0.2, "resolved": True},
+        {"instance_id": "o__b-1", "repo": "o__b", "chrf": 0.3, "resolved": False},
+        {"instance_id": "o__b-2", "repo": "o__b", "chrf": 0.5, "resolved": True},
+    ]
+    r = within_instance_auc(rows, "chrf", n_boot=100)
+    assert r["n_instances"] == 2 and r["n_pairs"] == 2
+    assert r["value"] == 0.5
+    assert 0.0 <= r["low"] <= r["high"] <= 1.0

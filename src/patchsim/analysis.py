@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from .io import outcome_for
 from .score import METRICS
-from .stats import best_threshold, clustered_bootstrap_auc
+from .stats import best_threshold, cluster_bootstrap, clustered_bootstrap_auc, stratum_pairs
 
 
 def attach_outcomes(rows: list[dict], outcomes: dict) -> list[dict]:
@@ -15,6 +15,33 @@ def attach_outcomes(rows: list[dict], outcomes: dict) -> list[dict]:
         if y is not None:
             out.append({**r, "resolved": y})
     return out
+
+
+def within_instance_auc(
+    rows: list[dict], metric: str, n_boot: int = 2000, level: float = 0.95, seed: int = 0
+) -> dict[str, object]:
+    """AUC over (resolved, unresolved) pairs of candidates for the same instance.
+
+    Only instances where some systems resolved and others did not contribute.
+    The interval resamples repositories; each drawn repository brings the pair
+    counts of all its instances (see :func:`patchsim.stats.stratified_auc`).
+    """
+    parts = stratum_pairs(
+        [float(r[metric]) for r in rows],
+        [bool(r["resolved"]) for r in rows],
+        [str(r["instance_id"]) for r in rows],
+    )
+    repo = {str(r["instance_id"]): str(r["repo"]) for r in rows}
+    keys = sorted(parts)
+    u = [parts[k][0] for k in keys]
+    p = [parts[k][1] for k in keys]
+
+    def stat(idx: list[int]) -> float | None:
+        den = sum(p[i] for i in idx)
+        return sum(u[i] for i in idx) / den if den else None
+
+    res = cluster_bootstrap(stat, [repo[k] for k in keys], n_boot, level, seed)
+    return {**res, "n_instances": len(keys), "n_pairs": sum(p)}
 
 
 def _share(num: int, den: int) -> dict[str, object]:
@@ -51,6 +78,7 @@ def analyze(
         y = [bool(r["resolved"]) for r in sub]
         boot = clustered_bootstrap_auc(s, y, [str(r["repo"]) for r in sub], n_boot, level, seed)
         per_metric[m] = {"n": len(sub), "n_resolved": sum(y), **boot, **best_threshold(s, y)}
+        per_metric[m]["within_instance"] = within_instance_auc(sub, m, n_boot, level, seed)
 
     resolved = [r for r in rows if r["resolved"]]
     unresolved = [r for r in rows if not r["resolved"]]

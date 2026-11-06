@@ -40,14 +40,25 @@ def analysis_markdown(res: dict) -> str:
         + ", ".join(f"{k} {v}" for k, v in res.get("ast_modes", {}).items())
         + ".",
         "",
-        f"| metric | n | AUC | {pct}% interval | best accuracy | threshold | majority |",
-        "|---|---|---|---|---|---|---|",
+        f"| metric | n | AUC | {pct}% interval | within-instance AUC | best accuracy "
+        "| threshold | majority |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for m, r in res["metrics"].items():
+        w = r.get("within_instance")
         out.append(
             f"| {m} | {r['n']} | {_f(r['auc'])} | [{_f(r['low'])}, {_f(r['high'])}] | "
+            f"{_iv(w)} | "
             f"{_f(r['accuracy'])} | {_f(r['threshold'])} | {_f(r['majority_baseline'])} |"
         )
+    w0 = next(iter(res["metrics"].values()), {}).get("within_instance")
+    if w0:
+        out += [
+            "",
+            f"Within-instance AUC uses only pairs of candidates for the same instance, "
+            f"one resolved and one not ({w0['n_instances']} instances, {w0['n_pairs']} pairs "
+            f"for the first metric).",
+        ]
     out += ["", "## File sets", ""]
     for k, v in res["shares"].items():
         out.append(f"- {k.replace('_', ' ')}: {v['count']} of {v['of']} ({_f(v['share'])})")
