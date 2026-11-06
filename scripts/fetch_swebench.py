@@ -66,9 +66,7 @@ def fetch_gold(out: Path) -> list[dict]:
     while True:
         page = json.loads(get(ROWS.format(offset=offset)))
         batch = [r["row"] for r in page["rows"]]
-        rows += [
-            {k: r[k] for k in ("instance_id", "repo", "base_commit", "patch")} for r in batch
-        ]
+        rows += [{k: r[k] for k in ("instance_id", "repo", "base_commit", "patch")} for r in batch]
         offset += len(batch)
         if not batch or offset >= page["num_rows_total"]:
             break

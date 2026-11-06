@@ -45,43 +45,24 @@ def clustered_bootstrap_auc(
 ) -> dict[str, object]:
     """Percentile bootstrap interval for AUC that resamples whole clusters.
 
-    Each replicate draws as many clusters as there are, with replacement, and
-    keeps every item of each drawn cluster, so items from the same repository
-    stay together. Replicates in which one class is absent are dropped and
-    counted in ``n_dropped``.
+    A thin wrapper over :func:`cluster_bootstrap` with the AUC as the statistic,
+    returning the point estimate under ``auc``. Replicates in which one class is
+    absent are dropped and counted in ``n_dropped``.
     """
-    groups: dict[str, list[int]] = defaultdict(list)
-    for i, c in enumerate(clusters):
-        groups[c].append(i)
-    keys = sorted(groups)
-    rng = random.Random(seed)
-    reps: list[float] = []
-    dropped = 0
-    for _ in range(n_boot):
-        idx = [i for k in rng.choices(keys, k=len(keys)) for i in groups[k]]
-        a = auc([scores[i] for i in idx], [labels[i] for i in idx])
-        if a is None:
-            dropped += 1
-        else:
-            reps.append(a)
-    point = auc(scores, labels)
-    if not reps:
-        return {"auc": point, "low": None, "high": None, "n_boot": 0, "n_dropped": dropped}
-    reps.sort()
-    alpha = (1 - level) / 2
-    lo = reps[int(alpha * (len(reps) - 1))]
-    hi = reps[int(round((1 - alpha) * (len(reps) - 1)))]
-    mean = sum(reps) / len(reps)
-    se = (sum((r - mean) ** 2 for r in reps) / max(len(reps) - 1, 1)) ** 0.5
-    return {
-        "auc": point,
-        "low": lo,
-        "high": hi,
-        "se": se,
-        "n_boot": len(reps),
-        "n_dropped": dropped,
-        "n_clusters": len(keys),
-    }
+
+    def stat(idx: list[int]) -> float | None:
+        return auc([scores[i] for i in idx], [labels[i] for i in idx])
+
+    res = cluster_bootstrap(stat, clusters, n_boot, level, seed)
+    return {"auc": res.pop("value"), **res}
+
+
+def percentile_interval(reps: Sequence[float], level: float) -> tuple[float, float]:
+    """Equal-tailed percentile interval of sorted replicates: the order statistics
+    at k = floor(alpha (n - 1)) and n - 1 - k, with alpha = (1 - level) / 2, so
+    both ends use the same rule."""
+    k = int((1 - level) / 2 * (len(reps) - 1))
+    return reps[k], reps[len(reps) - 1 - k]
 
 
 def stratum_pairs(
@@ -129,8 +110,9 @@ def cluster_bootstrap(
 
     ``stat`` maps a list of indices (with repeats) to a number, or None when the
     statistic is undefined on that draw; such draws are dropped and counted.
-    Clusters are resampled whole, with replacement, as in
-    :func:`clustered_bootstrap_auc`.
+    Each replicate draws as many clusters as there are, with replacement, and
+    keeps every item of each drawn cluster, so items from the same repository
+    stay together. The interval is :func:`percentile_interval` of the replicates.
     """
     groups: dict[str, list[int]] = defaultdict(list)
     for i, c in enumerate(clusters):
@@ -148,14 +130,14 @@ def cluster_bootstrap(
     point = stat(list(range(len(clusters))))
     out: dict[str, object] = {"value": point, "n_boot": len(reps), "n_dropped": dropped}
     if not reps:
-        return {**out, "low": None, "high": None, "se": None}
+        return {**out, "low": None, "high": None, "se": None, "n_clusters": len(keys)}
     reps.sort()
-    alpha = (1 - level) / 2
+    low, high = percentile_interval(reps, level)
     mean = sum(reps) / len(reps)
     return {
         **out,
-        "low": reps[int(alpha * (len(reps) - 1))],
-        "high": reps[int(round((1 - alpha) * (len(reps) - 1)))],
+        "low": low,
+        "high": high,
         "se": (sum((r - mean) ** 2 for r in reps) / max(len(reps) - 1, 1)) ** 0.5,
         "n_clusters": len(keys),
     }
@@ -194,9 +176,7 @@ def best_threshold(scores: Sequence[float], labels: Sequence[bool]) -> dict[str,
     }
 
 
-def roc_points(
-    scores: Sequence[float], labels: Sequence[bool]
-) -> list[tuple[float, float]]:
+def roc_points(scores: Sequence[float], labels: Sequence[bool]) -> list[tuple[float, float]]:
     """(false positive rate, true positive rate) for 'resolved when score >= t' as t
     falls through the distinct scores, from (0, 0) to (1, 1). Tied scores move
     both rates in one step, so the trapezoid area under the points equals

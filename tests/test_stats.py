@@ -173,3 +173,26 @@ def test_stratified_auc_removes_between_stratum_signal():
     assert auc(s, y) == pytest.approx(10 / 16)
     # within: easy 3 pairs all lost; hard 3 pairs: 0 + 0.5 + 0.5
     assert stratified_auc(s, y, g) == pytest.approx(1 / 6)
+
+
+def test_percentile_interval_uses_one_rule_for_both_ends():
+    from patchsim.stats import percentile_interval
+
+    reps = [float(i) for i in range(2000)]
+    # k = floor(0.025 * 1999) = 49; the upper end mirrors it at 1999 - 49
+    assert percentile_interval(reps, 0.95) == (49.0, 1950.0)
+    assert percentile_interval([1.0, 2.0, 3.0], 0.5) == (1.0, 3.0)
+    assert percentile_interval([5.0], 0.95) == (5.0, 5.0)
+
+
+def test_clustered_bootstrap_auc_matches_generic_bootstrap():
+    from patchsim.stats import auc, cluster_bootstrap
+
+    s = [0.1, 0.4, 0.35, 0.8, 0.7, 0.2, 0.9, 0.5]
+    y = [False, True, False, True, True, False, True, False]
+    c = ["a", "a", "b", "b", "c", "c", "d", "d"]
+    r = clustered_bootstrap_auc(s, y, c, n_boot=200, seed=3)
+    g = cluster_bootstrap(
+        lambda idx: auc([s[i] for i in idx], [y[i] for i in idx]), c, n_boot=200, seed=3
+    )
+    assert r["auc"] == g["value"] and (r["low"], r["high"]) == (g["low"], g["high"])
