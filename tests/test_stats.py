@@ -117,3 +117,21 @@ def test_cluster_bootstrap_undefined_draws():
 
     r = cluster_bootstrap(lambda idx: None, ["a", "b"], n_boot=10)
     assert r["value"] is None and r["low"] is None and r["n_dropped"] == 10
+
+
+def test_roc_points_area_equals_auc():
+    from patchsim.stats import roc_points
+
+    rng = random.Random(5)
+    for _ in range(100):
+        n = rng.randint(2, 30)
+        s = [rng.choice([0.0, 0.5, 1.0, rng.random()]) for _ in range(n)]
+        y = [rng.random() < 0.5 for _ in range(n)]
+        pts = roc_points(s, y)
+        if all(y) or not any(y):
+            assert pts == []
+            continue
+        segs = zip(pts[:-1], pts[1:], strict=True)
+        area = sum((x2 - x1) * (y1 + y2) / 2 for (x1, y1), (x2, y2) in segs)
+        assert pts[0] == (0.0, 0.0) and pts[-1] == (1.0, 1.0)
+        assert area == pytest.approx(auc(s, y))

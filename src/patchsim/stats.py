@@ -160,6 +160,31 @@ def best_threshold(scores: Sequence[float], labels: Sequence[bool]) -> dict[str,
     }
 
 
+def roc_points(
+    scores: Sequence[float], labels: Sequence[bool]
+) -> list[tuple[float, float]]:
+    """(false positive rate, true positive rate) for 'resolved when score >= t' as t
+    falls through the distinct scores, from (0, 0) to (1, 1). Tied scores move
+    both rates in one step, so the trapezoid area under the points equals
+    :func:`auc`. Empty if either class is absent."""
+    n_pos = sum(1 for y in labels if y)
+    n_neg = len(labels) - n_pos
+    if n_pos == 0 or n_neg == 0:
+        return []
+    pairs = sorted(zip(scores, labels, strict=True), key=lambda t: -t[0])
+    pts = [(0.0, 0.0)]
+    tp = fp = 0
+    i = 0
+    while i < len(pairs):
+        t = pairs[i][0]
+        while i < len(pairs) and pairs[i][0] == t:
+            tp += pairs[i][1]
+            fp += not pairs[i][1]
+            i += 1
+        pts.append((fp / n_neg, tp / n_pos))
+    return pts
+
+
 def repo_of(instance_id: str) -> str:
     """Repository part of a SWE-bench style id: 'owner__name-123' -> 'owner__name'."""
     head, sep, tail = instance_id.rpartition("-")
