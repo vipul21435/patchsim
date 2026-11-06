@@ -128,3 +128,57 @@ def test_bad_numeric_options_are_one_line(tmp_path, capsys, flag, value, msg):
     assert e.value.code == 2
     err = capsys.readouterr().err
     assert msg in err and "Traceback" not in err
+
+
+def _two_systems(tmp_path):
+    g2 = {**GOLD, "instance_id": "a__b-2"}
+    cands = [CAND, {**CAND, "model": "t"}, {**CAND, "instance_id": "a__b-2"}]
+    cands.append({**CAND, "instance_id": "a__b-2", "model": "t"})
+    c = _jsonl(tmp_path / "c.jsonl", cands)
+    g = _jsonl(tmp_path / "g.jsonl", [GOLD, g2])
+    res = tmp_path / "res.json"
+    res.write_text(json.dumps({"resolved": ["a__b-1"]}))
+    return c, g, str(res)
+
+
+@pytest.mark.parametrize("command", ["analyze", "compare"])
+def test_outcomes_without_system_names_meet_two_systems(tmp_path, capsys, command):
+    c, g, res = _two_systems(tmp_path)
+    args = [command, "--candidates", c, "--gold", g, "--outcomes", res, "--n-boot", "10"]
+    assert main(args) == 2
+    err = capsys.readouterr().err
+    assert "no system name" in err and "res.json" in err
+    # one system kept: the list is unambiguous
+    assert main(["analyze", "--candidates", c, "--gold", g, "--outcomes", res,
+                 "--n-boot", "10", "--include-system", "s"]) == 0  # fmt: skip
+
+
+def test_duplicate_keys_are_rejected_with_file_and_line(tmp_path):
+    with pytest.raises(ValueError, match=r"c.jsonl:2: .*duplicate"):
+        load_candidates(_jsonl(tmp_path / "c.jsonl", [CAND, CAND]))
+    with pytest.raises(ValueError, match=r"g.jsonl:2: duplicate"):
+        load_gold(_jsonl(tmp_path / "g.jsonl", [GOLD, GOLD]))
+    row = {"instance_id": "a__b-1", "model": "s", "resolved": True}
+    with pytest.raises(ValueError, match=r"o.jsonl:2: duplicate"):
+        load_outcomes(_jsonl(tmp_path / "o.jsonl", [row, {**row, "resolved": False}]))
+
+
+def test_patch_must_be_a_string(tmp_path):
+    for bad in (12, ["x"]):
+        with pytest.raises(ValueError, match=r"c.jsonl:1: 'patch' must be a string"):
+            load_candidates(_jsonl(tmp_path / "c.jsonl", [{**CAND, "patch": bad}]))
+    assert load_candidates(_jsonl(tmp_path / "c.jsonl", [{**CAND, "patch": None}]))[0].patch == ""
+
+
+def test_directory_non_utf8_and_missing_sources_are_one_line(tmp_path, capsys):
+    g = _jsonl(tmp_path / "g.jsonl", [GOLD])
+    assert main(["score", "--candidates", str(tmp_path), "--gold", g]) == 2
+    err = capsys.readouterr().err
+    assert str(tmp_path) in err and "Traceback" not in err
+    bad = tmp_path / "bad.jsonl"
+    bad.write_bytes(b'{"instance_id": "\xff"}\n')
+    assert main(["score", "--candidates", str(bad), "--gold", g]) == 2
+    assert "bad.jsonl" in capsys.readouterr().err
+    c = _jsonl(tmp_path / "c.jsonl", [CAND])
+    assert main(["score", "--candidates", c, "--gold", g, "--sources", str(tmp_path / "no")]) == 2
+    assert "--sources" in capsys.readouterr().err

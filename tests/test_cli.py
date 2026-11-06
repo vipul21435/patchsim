@@ -187,15 +187,21 @@ def test_cli_compare(demo_dir, tmp_path, capsys):
     assert (res["a"], res["b"]) == ("sys-a", "sys-b")
     assert res["n_shared"] > 0 and "auc_diff" in res["metrics"]["chrf"]
     assert "patchsim comparison" in md.read_text()
-    # B given as a separate file, no outcomes
+    # B given as a separate file, no outcomes; one system per file
+    lines = (demo_dir / "candidates.jsonl").read_text().splitlines(keepends=True)
+    one = tmp_path / "one.jsonl"
+    one.write_text("".join(x for x in lines if '"sys-a"' in x))
     rc = main(
         [
             "compare",
-            *base,
+            "--candidates",
+            str(one),
+            "--gold",
+            str(demo_dir / "gold.jsonl"),
             "--system",
             "x",
             "--candidates-b",
-            str(demo_dir / "candidates.jsonl"),
+            str(one),
             "--system-b",
             "y",
             "--n-boot",

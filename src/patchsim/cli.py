@@ -11,7 +11,7 @@ from pathlib import Path
 from . import __version__
 from .analysis import analyze, attach_outcomes
 from .compare import compare
-from .io import load_candidates, load_gold, load_outcomes
+from .io import load_candidates, load_gold, load_outcomes, system_free
 from .report import analysis_markdown, compare_markdown, summary_markdown
 from .score import METRICS, score_all
 
@@ -110,7 +110,24 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _outcomes(args: argparse.Namespace, rows: list[dict]) -> dict:
+    """Outcomes from ``--outcomes``; outcomes without a system name are refused
+    when the rows hold more than one system, since every system would get the
+    same labels."""
+    outcomes = load_outcomes(args.outcomes)
+    systems = sorted({str(r["system"]) for r in rows})
+    if system_free(outcomes) and len(systems) > 1:
+        raise ValueError(
+            f"{args.outcomes}: outcomes with no system name would give all {len(systems)} "
+            "systems the same labels; use JSONL rows with 'model', or keep one system "
+            "with --include-system"
+        )
+    return outcomes
+
+
 def _rows(args: argparse.Namespace) -> list[dict]:
+    if args.sources is not None and not Path(args.sources).is_dir():
+        raise ValueError(f"--sources {args.sources}: not a directory")
     cands = load_candidates(args.candidates, args.system)
     if args.include_system:
         cands = [c for c in cands if c.system in set(args.include_system)]
@@ -123,6 +140,7 @@ def _rows(args: argparse.Namespace) -> list[dict]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the command line; returns the exit status (2 on bad input)."""
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:
@@ -132,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run(args)
     except FileNotFoundError as e:
         print(f"patchsim: {e.filename}: no such file", file=sys.stderr)
+    except OSError as e:
+        print(f"patchsim: {e.filename}: {e.strerror}", file=sys.stderr)
     except KeyError as e:
         print(f"patchsim: missing key {e.args[0]!r}", file=sys.stderr)
     except ValueError as e:
@@ -153,7 +173,7 @@ def _run(args: argparse.Namespace) -> int:
         return 0
     if args.command == "compare":
         return _compare(args, rows)
-    rows = attach_outcomes(rows, load_outcomes(args.outcomes))
+    rows = attach_outcomes(rows, _outcomes(args, rows))
     if not rows:
         print("no scored candidate has an outcome", file=sys.stderr)
         return 1
@@ -194,7 +214,7 @@ def _compare(args: argparse.Namespace, rows: list[dict]) -> int:
         print(f"need two distinct systems; found {systems}", file=sys.stderr)
         return 1
     if args.outcomes:
-        rows = attach_outcomes(rows, load_outcomes(args.outcomes))
+        rows = attach_outcomes(rows, _outcomes(args, rows))
     res = compare(
         rows,
         a,
