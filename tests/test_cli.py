@@ -146,3 +146,51 @@ def test_empty_candidates_excluded_by_default():
     assert kept["n_candidates"] == 4
     # pairs: each positive beats the empty one (1) and ties the other (0.5): 3 / 4
     assert kept["metrics"]["chrf"]["auc"] == pytest.approx(0.75)
+
+
+def test_cli_compare(demo_dir, tmp_path, capsys):
+    base = [
+        "--candidates",
+        str(demo_dir / "candidates.jsonl"),
+        "--gold",
+        str(demo_dir / "gold.jsonl"),
+    ]
+    js = tmp_path / "cmp.json"
+    md = tmp_path / "cmp.md"
+    rc = main(
+        [
+            "compare",
+            *base,
+            "--outcomes",
+            str(demo_dir / "outcomes.jsonl"),
+            "--n-boot",
+            "50",
+            "--json",
+            str(js),
+            "--markdown",
+            str(md),
+        ]
+    )
+    assert rc == 0
+    res = json.loads(js.read_text())
+    assert (res["a"], res["b"]) == ("sys-a", "sys-b")
+    assert res["n_shared"] > 0 and "auc_diff" in res["metrics"]["chrf"]
+    assert "patchsim comparison" in md.read_text()
+    # B given as a separate file, no outcomes
+    rc = main(
+        [
+            "compare",
+            *base,
+            "--system",
+            "x",
+            "--candidates-b",
+            str(demo_dir / "candidates.jsonl"),
+            "--system-b",
+            "y",
+            "--n-boot",
+            "20",
+        ]
+    )
+    assert rc == 0
+    assert "| chrf |" in capsys.readouterr().out
+    assert main(["compare", *base, "--a", "sys-a", "--b", "sys-a"]) == 1

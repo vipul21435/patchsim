@@ -67,3 +67,42 @@ def analysis_markdown(res: dict) -> str:
     if not d["different_files_resolved"]:
         out.append("- none")
     return "\n".join(out) + "\n"
+
+
+def _iv(b: dict | None) -> str:
+    if not b:
+        return "-"
+    return f"{_f(b['value'])} [{_f(b['low'])}, {_f(b['high'])}]"
+
+
+def compare_markdown(res: dict) -> str:
+    pct = int(round(res["level"] * 100))
+    a, b = res["a"], res["b"]
+    out = [
+        "# patchsim comparison",
+        "",
+        f"A = {a}, B = {b}. {res['n_shared']} shared instances over {res['n_repos']} "
+        f"repositories ({res['n_only_a']} only in A, {res['n_only_b']} only in B); "
+        f"{res['n_boot']} cluster-bootstrap replicates, seed {res['seed']}, {pct}% intervals.",
+        "",
+    ]
+    o = res["outcomes"]
+    if o:
+        out += [
+            f"Resolved: A {o['resolved_a']}, B {o['resolved_b']}; both {o['both']}, "
+            f"only A {o['only_a']}, only B {o['only_b']}, neither {o['neither']}. "
+            f"Rate difference B - A: {_iv(o['rate_diff'])}.",
+            "",
+        ]
+    head = "| metric | n | mean A | mean B | B - A |"
+    sep = "|---|---|---|---|---|"
+    if o:
+        head += " AUC A | AUC B | AUC B - A |"
+        sep += "---|---|---|"
+    out += [head, sep]
+    for m, r in res["metrics"].items():
+        line = f"| {m} | {r['n']} | {_f(r['mean_a'])} | {_f(r['mean_b'])} | {_iv(r['diff'])} |"
+        if o:
+            line += f" {_iv(r['auc_a'])} | {_iv(r['auc_b'])} | {_iv(r['auc_diff'])} |"
+        out.append(line)
+    return "\n".join(out) + "\n"
