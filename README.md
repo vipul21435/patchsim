@@ -95,6 +95,16 @@ Options shared by all three:
 never resolved and scores zero on every metric, so keeping it lifts every AUC with the same
 easy cases.
 
+From Python, `patchsim.score.score_pair(candidate_diff, gold_diff)` returns every metric for
+one pair; `examples/pair.py` scores a hand-made candidate that adds the same guard as the gold
+patch in other words and leaves a reproduction script behind:
+
+```
+$ python examples/pair.py     # abridged
+all files:            file_precision 0.5, file_f1 0.667, token_f1 0.323, chrf 0.393
+new files set aside:  file_precision 1.0, file_f1 1.0,   token_f1 0.588, chrf 0.577
+```
+
 Inputs:
 
 - candidates: JSONL, one object per line with `instance_id`, a system name (`model`, `system`
