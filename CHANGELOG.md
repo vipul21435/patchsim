@@ -10,6 +10,13 @@
 - Analysis: rank AUC, repository-clustered bootstrap interval, within-instance AUC over pairs of
   candidates for the same task, best single-threshold accuracy against the majority baseline,
   file-set shares and disagreement examples. Empty candidate patches are left out by default.
+- Best-threshold accuracy labelled in-sample, with a leave-one-repository-out accuracy beside
+  it; disagreement sets defined by the best threshold, with their counts.
+- `analyze --vs-metric`: paired AUC difference between one metric and every other.
+- Post-patch AST mode counts the code around removed lines in the pre-patch file, and a line
+  in a class body outside any method counts that statement rather than the whole class.
+- Bad input (missing file, malformed line, missing key, non-boolean `resolved`) ends with a
+  one-line message and exit status 2.
 - `patchsim score`, `patchsim analyze` and `patchsim compare` (paired two-system comparison of
   mean similarity, resolve rate and AUC) with Markdown and JSON output; `--ignore-new-files`,
   `--sources` and `--include-system` options.
