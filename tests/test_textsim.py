@@ -85,3 +85,46 @@ def test_chrf_empty():
     e = parse_diff("")
     assert chrf(e, e) == 1.0
     assert chrf(parse_diff(one_line(None, "abc")), e) == 0.0
+
+
+def _one(path, old, new):
+    from patchsim.diff import parse_diff
+
+    return parse_diff(f"--- a/{path}\n+++ b/{path}\n@@ -1,1 +1,1 @@\n-{old}\n+{new}\n")
+
+
+def test_hash_lines_are_code_outside_hash_comment_languages():
+    from patchsim.textsim import chrf, token_f1
+
+    c = _one("m.c", "#include <a.h>", "#include <b.h>")
+    g = _one("m.c", "#define X 1", "#define X 2")
+    assert token_f1(c, g) < 0.5 and chrf(c, g) < 0.5
+    assert token_f1(c, c) == chrf(c, c) == 1.0
+
+
+def test_python_comments_dropped_but_compared_when_nothing_else_changes():
+    from patchsim.diff import parse_diff
+    from patchsim.textsim import chrf, token_f1
+
+    c = _one("m.py", "# old note", "# a comment about caching")
+    g = _one("m.py", "# old note", "# unrelated text here")
+    assert token_f1(c, g) < 1.0 and chrf(c, g) < 1.0
+    assert token_f1(c, c) == chrf(c, c) == 1.0
+    code = "--- a/m.py\n+++ b/m.py\n@@ -1,2 +1,2 @@\n-x = 1\n-# note\n+x = 2\n+# other\n"
+    plain = "--- a/m.py\n+++ b/m.py\n@@ -1,1 +1,1 @@\n-x = 1\n+x = 2\n"
+    assert token_f1(parse_diff(code), parse_diff(plain)) == 1.0
+
+
+def test_chrf_short_line_counts_missing_orders_as_zero():
+    from patchsim.diff import parse_diff
+    from patchsim.textsim import chrf
+
+    # 'ab' against 'abcdefgh': orders 3 to 6 have no candidate n-grams, so
+    # P_n = R_n = 0 there and P = 2/6, R = (2/8 + 1/7)/6 (the paper's formula;
+    # sacrebleu's default effective order would drop those orders instead).
+    p, r = 2 / 6, (2 / 8 + 1 / 7) / 6
+
+    c = parse_diff("--- /dev/null\n+++ b/t.txt\n@@ -0,0 +1 @@\n+ab\n")
+    g = parse_diff("--- /dev/null\n+++ b/t.txt\n@@ -0,0 +1 @@\n+abcdefgh\n")
+    assert abs(chrf(c, g) - 5 * p * r / (4 * p + r)) < 1e-12
+    assert round(chrf(c, g), 3) == 0.078
