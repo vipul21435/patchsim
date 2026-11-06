@@ -97,6 +97,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
+    try:
+        return _run(args)
+    except FileNotFoundError as e:
+        print(f"patchsim: {e.filename}: no such file", file=sys.stderr)
+    except KeyError as e:
+        print(f"patchsim: missing key {e.args[0]!r}", file=sys.stderr)
+    except ValueError as e:
+        print(f"patchsim: {e}", file=sys.stderr)
+    return 2
+
+
+def _run(args: argparse.Namespace) -> int:
     rows = _rows(args)
     if not rows:
         print("no candidate has a matching gold patch", file=sys.stderr)

@@ -135,9 +135,12 @@ Inputs:
 - candidates: JSONL, one object per line with `instance_id`, a system name (`model`, `system`
   or `model_name_or_path`) and a unified diff (`patch`, `model_patch` or `diff`);
 - gold: JSONL or a JSON list with `instance_id` and `patch` (the SWE-bench dataset layout);
-- outcomes: JSONL with `instance_id`, `resolved` and optionally the system name, or a JSON
-  object with a `resolved` list of instance ids, in which case every other scored instance
-  counts as unresolved.
+- outcomes: JSONL with `instance_id`, `resolved` (`true`/`false`, or `0`/`1`; strings are
+  rejected) and optionally the system name, or a JSON object with a `resolved` list of
+  instance ids, in which case every other scored instance counts as unresolved.
+
+A missing file, a malformed line or a row without a required key stops the command with a
+one-line message naming the file and line, and exit status 2.
 
 ## How it works
 
