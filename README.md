@@ -129,17 +129,25 @@ Details and the choices behind them:
   lines; blank and whole-line `#` comment lines are dropped, and each token is tagged with its
   side, so adding `x` never matches removing `x`.
 - chrF follows the character n-gram F-score of Popović ("chrF: character n-gram F-score for
-  automatic MT evaluation", WMT 2015). Here n-grams are taken within each changed line with
-  whitespace removed and tagged by side; orders where both sides are empty are skipped. Character
-  n-grams give partial credit to `rstrip` against `strip`, which token F1 does not.
+  automatic MT evaluation", Tenth Workshop on Statistical Machine Translation, 2015,
+  https://aclanthology.org/W15-3049/): precision and recall are averaged arithmetically over
+  n-gram orders up to 6, and β gives recall β times the weight of precision. The paper reports
+  β = 1 and β = 3; patchsim uses β = 2 (a parameter of `chrf()`), between the two. Here n-grams
+  are taken within each changed line with whitespace removed and tagged by side; orders where
+  both sides are empty are skipped. Character n-grams give partial credit to `rstrip` against
+  `strip`, which token F1 does not.
 - AST similarity is a simplified relative of the syntax-match component of CodeBLEU (Ren et al.,
   "CodeBLEU: a Method for Automatic Evaluation of Code Synthesis", arXiv 2009.10297): a multiset
   of node types rather than subtrees, and no data-flow term. Without repository content it works
   on the patch lines (`ast_mode: patch_lines`): the lines are parsed as one dedented block, or
   failing that one by one, with block headers completed by `pass` and unparseable lines (`else:`,
-  continuation lines) skipped; node types are tagged by side. When post-patch sources are passed
-  to `ast_similarity` in Python, node types come from the whole functions that contain the added
-  lines (`ast_mode: post_patch_source`). Expression-context nodes (`Load`, `Store`, `Del`) are
+  continuation lines) skipped; node types are tagged by side. With `--sources`, each patch is applied
+  to the pre-patch files and node types come from the whole functions (or top-level statements)
+  of the post-patch file that contain the added lines (`ast_mode: post_patch_source`). Hunks
+  are applied strictly: context and removed lines must match exactly (trailing whitespace
+  aside), at the stated line or the nearest offset, with no fuzz. If a file is missing or a
+  hunk does not apply, that candidate falls back to `patch_lines`, and the report counts how
+  many candidates used each mode. Expression-context nodes (`Load`, `Store`, `Del`) are
   dropped. The metric is None when neither patch touches a `.py` file.
 - Changed functions are read from the patch: the nearest `def` line above each changed line
   inside the hunk, or the function named in the hunk header.
@@ -153,11 +161,32 @@ Analysis, for each metric, over candidates with a known outcome:
   Replicates that lose a class are dropped and counted. A simulation test with a random effect
   per repository checks that the bootstrap standard error is within 0.7 to 1.4 times the true
   sampling standard deviation, and that it is wider than an item-level bootstrap.
+- Within-instance AUC: the same probability counted only over pairs of candidates for the same
+  instance, one resolved and one not, Σᵢ Uᵢ / Σᵢ Pᵢ over instances i, where Pᵢ is the number of
+  such pairs and Uᵢ the number in which the resolved candidate scores higher (ties ½). The
+  pooled AUC mixes two effects: whether a metric ranks candidates for one task, and whether
+  tasks that are easy to resolve also have small, easy-to-match gold patches. The
+  within-instance AUC keeps only the first; it needs several systems on the same instances.
+  Its interval resamples repositories and sums Uᵢ and Pᵢ over the instances drawn. A test
+  checks it against a brute-force count and builds a case where it differs from the pooled AUC.
 - The best accuracy of a single rule "resolved when score ≥ t" over all t, against the majority
   baseline max(p, 1 − p).
 - The share of resolved candidates touching files outside the gold patch, the share missing a
   gold file, the share of unresolved candidates touching exactly the gold files, and example
   instance ids for each kind of disagreement.
+
+Comparison of two systems A and B (`compare`), on the instances both attempted:
+
+- the mean of each metric for each system and the mean paired difference mean(B − A);
+- resolved counts (both, only A, only B, neither) and the difference in resolve rate;
+- the AUC within each system and the difference AUC_B − AUC_A, to see whether similarity is a
+  better proxy for one system than for the other.
+
+Every interval comes from a bootstrap over repositories in which an instance keeps both of its
+candidates, so the two systems are always compared on the same draw (a paired design). A
+general `cluster_bootstrap(stat, clusters)` does the resampling; a simulation test checks that
+its interval for a mean covers the true value at close to the nominal rate when the data have a
+random effect per cluster.
 
 ## Results on real public data
 
