@@ -41,6 +41,18 @@ class FilePatch:
     def removed(self) -> list[str]:
         return [t for h in self.hunks for tag, t in h.lines if tag == "-"]
 
+    def added_new_lines(self) -> list[int]:
+        """Line numbers, in the post-patch file, of the added lines."""
+        out = []
+        for h in self.hunks:
+            new_no = h.new_start if h.new_len else h.new_start + 1
+            for tag, _ in h.lines:
+                if tag == "+":
+                    out.append(new_no)
+                if tag != "-":
+                    new_no += 1
+        return out
+
     def touched_positions(self) -> set[int]:
         """Positions in the original file touched by this patch.
 
