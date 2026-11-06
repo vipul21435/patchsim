@@ -282,7 +282,8 @@ and instance ids). The download is about 98 MB (0.9 MB of gold patches, 36 MB of
 61 MB of source files) into `data/` inside the clone (ignored by git; `--out DIR` and the
 first argument of `run_real.sh` choose another directory).
 
-Commands (the second runs every analysis below, about three minutes on a laptop):
+Commands (the second runs every analysis below; 1,095 s of wall time, about 18 minutes, on a
+laptop, most of it in the paired `--vs-metric` bootstraps):
 
 ```
 uv run python scripts/fetch_swebench.py --sources
@@ -294,31 +295,34 @@ bash scripts/run_real.sh            # writes results/
 ```
 D=data
 patchsim analyze --candidates $D/candidates.jsonl --gold $D/gold.jsonl --outcomes $D/outcomes.jsonl \
-  --n-boot 2000 --seed 0 [--ignore-new-files] [--sources $D/sources] --markdown results/....md
+  --n-boot 2000 --seed 0 [--ignore-new-files] [--sources $D/sources] [--vs-metric chrf] \
+  --markdown results/....md
 ```
 
 All six systems pooled; AUC with 95 % repository-clustered bootstrap intervals (2,000
 replicates, seed 0); empty patches left out. "All files" scores every file of every candidate
 (`results/analysis_all_files.md`, 2,929 candidates); "new files set aside" adds
 `--ignore-new-files` (`results/analysis_ignore_new.md`, 2,871 candidates: 58 more become empty
-because they only created files, all of them unresolved). The best accuracy is for the second
-setting, against a majority baseline of 0.572 (predict every candidate unresolved).
+because they only created files, all of them unresolved). The two accuracy columns are for
+the second setting, against a majority baseline of 0.572 (predict every candidate unresolved).
+Best accuracy is in-sample (the threshold is chosen on the same candidates); held-out accuracy
+chooses it on 11 repositories and scores the twelfth, for each repository in turn.
 
-| metric | AUC, all files | AUC, new files set aside | within-instance AUC, new files set aside | best accuracy |
-|---|---|---|---|---|
-| file_precision | 0.657 [0.611, 0.687] | 0.646 [0.614, 0.686] | 0.615 [0.571, 0.680] | 0.600 |
-| file_recall | 0.700 [0.655, 0.720] | 0.690 [0.652, 0.714] | 0.613 [0.581, 0.642] | 0.653 |
-| file_f1 | 0.702 [0.657, 0.732] | 0.702 [0.665, 0.744] | 0.624 [0.577, 0.686] | 0.666 |
-| location_jaccard | 0.762 [0.724, 0.775] | 0.762 [0.726, 0.778] | 0.737 [0.698, 0.778] | 0.734 |
-| token_f1 | 0.731 [0.695, 0.741] | 0.781 [0.747, 0.800] | 0.740 [0.694, 0.787] | 0.739 |
-| chrf | 0.779 [0.748, 0.790] | 0.805 [0.775, 0.824] | 0.768 [0.724, 0.819] | 0.759 |
-| ast_similarity (patch lines) | 0.703 [0.654, 0.719] | 0.752 [0.696, 0.777] | 0.705 [0.645, 0.750] | 0.727 |
-| ast_similarity (post-patch source) | - | 0.772 [0.754, 0.818] | 0.706 [0.661, 0.775] | 0.741 |
-| function_jaccard | 0.620 [0.583, 0.705] | 0.616 [0.577, 0.706] | 0.605 [0.569, 0.650] | 0.649 |
-| edit_size_balance | 0.617 [0.581, 0.629] | 0.653 [0.627, 0.672] | 0.579 [0.538, 0.631] | 0.634 |
+| metric | AUC, all files | AUC, new files set aside | within-instance AUC, new files set aside | best accuracy (in-sample) | held-out accuracy |
+|---|---|---|---|---|---|
+| file_precision | 0.657 [0.611, 0.687] | 0.646 [0.614, 0.686] | 0.615 [0.571, 0.680] | 0.600 | 0.565 |
+| file_recall | 0.700 [0.655, 0.720] | 0.690 [0.652, 0.715] | 0.613 [0.581, 0.642] | 0.653 | 0.653 |
+| file_f1 | 0.702 [0.657, 0.733] | 0.702 [0.665, 0.744] | 0.624 [0.577, 0.687] | 0.666 | 0.666 |
+| location_jaccard | 0.762 [0.724, 0.776] | 0.762 [0.726, 0.778] | 0.737 [0.698, 0.778] | 0.734 | 0.723 |
+| token_f1 | 0.731 [0.695, 0.741] | 0.781 [0.747, 0.800] | 0.740 [0.694, 0.787] | 0.739 | 0.732 |
+| chrf | 0.779 [0.748, 0.790] | 0.805 [0.775, 0.824] | 0.768 [0.724, 0.819] | 0.759 | 0.756 |
+| ast_similarity (patch lines) | 0.703 [0.654, 0.719] | 0.752 [0.696, 0.777] | 0.705 [0.645, 0.750] | 0.727 | 0.715 |
+| ast_similarity (post-patch source) | - | 0.791 [0.772, 0.806] | 0.720 [0.655, 0.765] | 0.742 | 0.732 |
+| function_jaccard | 0.620 [0.583, 0.705] | 0.616 [0.577, 0.706] | 0.605 [0.569, 0.650] | 0.649 | 0.648 |
+| edit_size_balance | 0.617 [0.581, 0.629] | 0.653 [0.627, 0.672] | 0.579 [0.538, 0.631] | 0.634 | 0.630 |
 
 The post-patch row is from `results/analysis_post_patch.md` (`--ignore-new-files --sources`);
-2,863 of its 2,871 candidates used the post-patch source and 8 fell back to patch lines. The
+2,862 of its 2,871 candidates used the post-patch source and 9 fell back to patch lines. The
 within-instance AUC uses 1,912 resolved/unresolved pairs from 295 instances.
 
 ![ROC curves of six metrics, new files set aside](results/roc.png)
@@ -340,10 +344,10 @@ one candidate per instance, so no within-instance AUC):
 | system | n | resolved | AUC, file_f1 | AUC, location_jaccard | AUC, token_f1 | AUC, chrf | AUC, ast_similarity |
 |---|---|---|---|---|---|---|---|
 | 20240628_autocoderover-v20240620 | 492 | 192 | 0.704 [0.630, 0.733] | 0.764 [0.685, 0.788] | 0.768 [0.669, 0.822] | 0.788 [0.694, 0.838] | 0.745 [0.625, 0.807] |
-| 20240728_sweagent_gpt4o | 398 | 116 | 0.691 [0.599, 0.815] | 0.774 [0.709, 0.812] | 0.749 [0.707, 0.842] | 0.785 [0.750, 0.831] | 0.718 [0.673, 0.768] |
+| 20240728_sweagent_gpt4o | 398 | 116 | 0.691 [0.599, 0.815] | 0.774 [0.709, 0.813] | 0.749 [0.707, 0.842] | 0.785 [0.750, 0.831] | 0.718 [0.673, 0.768] |
 | 20241028_agentless-1.5_gpt4o | 496 | 194 | 0.717 [0.687, 0.767] | 0.757 [0.721, 0.802] | 0.797 [0.750, 0.822] | 0.805 [0.765, 0.832] | 0.775 [0.716, 0.805] |
-| 20241029_OpenHands-CodeAct-2.1-sonnet-20241022 | 490 | 265 | 0.699 [0.657, 0.740] | 0.760 [0.704, 0.786] | 0.766 [0.706, 0.791] | 0.788 [0.754, 0.812] | 0.734 [0.678, 0.754] |
-| 20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128 | 500 | 151 | 0.723 [0.691, 0.792] | 0.747 [0.671, 0.813] | 0.820 [0.762, 0.873] | 0.837 [0.797, 0.888] | 0.787 [0.704, 0.826] |
+| 20241029_OpenHands-CodeAct-2.1-sonnet-20241022 | 490 | 265 | 0.699 [0.657, 0.741] | 0.760 [0.704, 0.786] | 0.766 [0.706, 0.791] | 0.788 [0.754, 0.813] | 0.734 [0.678, 0.754] |
+| 20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128 | 500 | 151 | 0.723 [0.691, 0.793] | 0.747 [0.671, 0.815] | 0.820 [0.762, 0.873] | 0.837 [0.797, 0.888] | 0.787 [0.704, 0.827] |
 | 20250225_sweagent_claude-3-7-sonnet | 495 | 312 | 0.664 [0.609, 0.685] | 0.737 [0.700, 0.772] | 0.759 [0.714, 0.800] | 0.791 [0.746, 0.818] | 0.733 [0.671, 0.766] |
 
 Two systems with the same agent scaffold and different models (`results/compare_sweagent.md`,
@@ -357,9 +361,17 @@ the gold patch, but similarity is no better a proxy for its correctness.
 What the numbers say:
 
 - Character n-grams (chrF) separate resolved from unresolved candidates best of the metrics
-  here, at AUC 0.805 pooled and 0.768 within an instance. Best-threshold accuracy is 0.759
-  against a majority baseline of 0.572: about one candidate in four is misclassified by the
-  best single cut-off, which is far from a substitute for running tests.
+  that read the patch alone, at AUC 0.805 pooled and 0.768 within an instance. The paired
+  differences (`--vs-metric chrf`, in `results/analysis_ignore_new.md`) exclude zero against
+  each of them: chrF minus token F1 0.024 [0.011, 0.037], minus location Jaccard 0.043
+  [0.025, 0.063], minus AST on patch lines 0.053 [0.038, 0.089], minus file F1 0.103
+  [0.057, 0.130]. Against the AST metric on post-patch source the difference is 0.014
+  [−0.007, 0.024] (`results/analysis_post_patch.md`), so the two cannot be told apart here.
+- Best-threshold accuracy for chrF is 0.759 in-sample and 0.756 with the threshold chosen on
+  the other repositories, against a majority baseline of 0.572: about one candidate in four is
+  misclassified by the best single cut-off, which is far from a substitute for running tests.
+  With chrF at its best threshold (0.472), 265 unresolved candidates score at or above it and 427
+  resolved ones below it.
 - File-level agreement is a weak proxy: within an instance its AUC is 0.62. Nearly half of the
   unresolved candidates (0.492) edit exactly the gold files, and 10 % of resolved ones edit some
   other file even after created files are set aside.
