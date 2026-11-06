@@ -26,6 +26,7 @@ def summary_markdown(rows: list[dict], metrics: tuple[str, ...]) -> str:
 
 
 def analysis_markdown(res: dict) -> str:
+    """The Markdown report of a result from :func:`patchsim.analysis.analyze`."""
     pct = int(round(res["level"] * 100))
     out = [
         "# patchsim analysis",
@@ -117,6 +118,7 @@ def _iv(b: dict | None) -> str:
 
 
 def compare_markdown(res: dict) -> str:
+    """The Markdown report of a result from :func:`patchsim.compare.compare`."""
     pct = int(round(res["level"] * 100))
     a, b = res["a"], res["b"]
     out = [

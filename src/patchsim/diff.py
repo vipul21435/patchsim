@@ -114,6 +114,8 @@ class FilePatch:
 
 @dataclass
 class Patch:
+    """A parsed diff: one :class:`FilePatch` per path, in order of first appearance."""
+
     files: list[FilePatch] = field(default_factory=list)
 
     @property
@@ -121,6 +123,7 @@ class Patch:
         return {f.path for f in self.files}
 
     def by_path(self) -> dict[str, FilePatch]:
+        """The file patches keyed by path (one per path, see :func:`parse_diff`)."""
         return {f.path: f for f in self.files}
 
     @property
