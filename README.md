@@ -29,7 +29,7 @@ pip install git+https://github.com/vipul21435/patchsim
 Python 3.10 or newer; no runtime dependencies beyond the standard library.
 
 For development, from a clone: `uv venv --python 3.12`, `uv pip install -e .[dev]`, then
-`uv run pytest --cov=patchsim` (87 tests, offline, about 3 seconds with coverage; 99 % of
+`uv run pytest --cov=patchsim` (114 tests, offline, about 7 seconds with coverage; 98 % of
 statements covered, every module at 95 % or more).
 
 ## Quickstart
@@ -157,7 +157,10 @@ original line `k`, where a pure insertion lands, is position `2k + 1`. A run of 
 between two context lines touches the positions of the lines it removes, or the one gap if it
 removes nothing. This keeps insertions comparable with edits without inventing line numbers.
 A diff that names the same file in several sections (model-written diffs sometimes do) is read
-as one file patch with the hunks of every section, in order of original line.
+as one file patch with the hunks of every section, in order of original line. For the
+post-patch AST mode, sections whose hunks overlap are applied one after the other, as
+`git apply` does, and the changed lines then come from a line diff of the original and the
+final file.
 
 Per candidate C against gold G:
 
