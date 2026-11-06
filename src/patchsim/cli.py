@@ -58,6 +58,11 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--examples", type=int, default=5, help="disagreement examples per list")
     a.add_argument("--example-metric", default="chrf", choices=METRICS)
     a.add_argument(
+        "--vs-metric",
+        choices=METRICS,
+        help="also report the paired AUC difference between this metric and each other one",
+    )
+    a.add_argument(
         "--keep-empty", action="store_true", help="keep empty candidate patches in the analysis"
     )
     a.add_argument("--json", dest="json_out", help="write the full result as JSON")
@@ -134,6 +139,7 @@ def _run(args: argparse.Namespace) -> int:
         examples=args.examples,
         example_metric=args.example_metric,
         exclude_empty=not args.keep_empty,
+        vs_metric=args.vs_metric,
     )
     _write(args, res, analysis_markdown(res))
     return 0

@@ -93,6 +93,9 @@ Options shared by all three:
   are applied to them and the AST metric uses the post-patch source (see below).
 - `--include-system NAME` (repeatable) keeps only those systems.
 
+`analyze --vs-metric NAME` adds the paired difference between the AUC of that metric and the
+AUC of every other one, each with its interval.
+
 `analyze` leaves empty candidate patches out unless `--keep-empty` is given: an empty patch is
 never resolved and scores zero on every metric, so keeping it lifts every AUC with the same
 easy cases.
@@ -220,6 +223,9 @@ Analysis, for each metric, over candidates with a known outcome:
   the one left out, and counts correct calls over all repositories in turn.
 - The share of resolved candidates touching files outside the gold patch, the share missing a
   gold file, the share of unresolved candidates touching exactly the gold files.
+- With `--vs-metric M`, AUC(M) − AUC(m) for every other metric m, over the candidates where
+  both are defined; the interval comes from the same repository bootstrap, with both AUCs
+  computed on each draw, so the comparison is paired and the shared variation cancels.
 - Disagreements, against the best threshold t of one metric (`--example-metric`, default
   chrF): unresolved candidates scoring at least t, and resolved ones scoring below t, with their
   counts and the most extreme examples by instance id (highest first and lowest first); and the

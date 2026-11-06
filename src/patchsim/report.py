@@ -66,6 +66,19 @@ def analysis_markdown(res: dict) -> str:
         "candidates. Held-out accuracy chooses it on all repositories but one and scores "
         "the one left out, in turn.",
     ]
+    vs = res.get("vs_metric")
+    if vs:
+        out += [
+            "",
+            f"## AUC of {vs['metric']} minus AUC of each other metric",
+            "",
+            "Paired: both AUCs on the same candidates and the same bootstrap draws.",
+            "",
+            f"| metric | n | AUC {vs['metric']} - AUC metric | {pct}% interval |",
+            "|---|---|---|---|",
+        ]
+        for m, r in vs["differences"].items():
+            out.append(f"| {m} | {r['n']} | {_f(r['value'])} | [{_f(r['low'])}, {_f(r['high'])}] |")
     out += ["", "## File sets", ""]
     for k, v in res["shares"].items():
         out.append(f"- {k.replace('_', ' ')}: {v['count']} of {v['of']} ({_f(v['share'])})")

@@ -12,10 +12,10 @@ Y=(--outcomes "$D/outcomes.jsonl" --n-boot 2000 --seed 0)
 uv run patchsim analyze "${IN[@]}" "${Y[@]}" \
   --json "$OUT/analysis_all_files.json" --markdown "$OUT/analysis_all_files.md" > /dev/null
 # 2. files a candidate creates outside the gold patch set aside
-uv run patchsim analyze "${IN[@]}" "${Y[@]}" --ignore-new-files \
+uv run patchsim analyze "${IN[@]}" "${Y[@]}" --ignore-new-files --vs-metric chrf \
   --json "$OUT/analysis_ignore_new.json" --markdown "$OUT/analysis_ignore_new.md" > /dev/null
 # 3. as 2, with the AST metric on post-patch source
-uv run patchsim analyze "${IN[@]}" "${Y[@]}" --ignore-new-files --sources "$D/sources" \
+uv run patchsim analyze "${IN[@]}" "${Y[@]}" --ignore-new-files --sources "$D/sources" --vs-metric chrf \
   --json "$OUT/analysis_post_patch.json" --markdown "$OUT/analysis_post_patch.md" > /dev/null
 # 4. one system at a time, as 2
 for s in $(uv run python -c "import json,sys

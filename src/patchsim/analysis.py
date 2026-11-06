@@ -5,6 +5,7 @@ from __future__ import annotations
 from .io import outcome_for
 from .score import METRICS
 from .stats import (
+    auc,
     best_threshold,
     cluster_bootstrap,
     clustered_bootstrap_auc,
@@ -50,6 +51,33 @@ def within_instance_auc(
     return {**res, "n_instances": len(keys), "n_pairs": sum(p)}
 
 
+def paired_auc_difference(
+    rows: list[dict],
+    ref: str,
+    other: str,
+    n_boot: int = 2000,
+    level: float = 0.95,
+    seed: int = 0,
+) -> dict[str, object]:
+    """AUC(ref) - AUC(other) over the rows where both metrics are defined, with a
+    repository-clustered bootstrap interval in which both AUCs are computed on the
+    same draw (a paired comparison)."""
+    sub = [r for r in rows if r.get(ref) is not None and r.get(other) is not None]
+    a = [float(r[ref]) for r in sub]
+    b = [float(r[other]) for r in sub]
+    y = [bool(r["resolved"]) for r in sub]
+
+    def stat(idx: list[int]) -> float | None:
+        ys = [y[i] for i in idx]
+        ra, rb = auc([a[i] for i in idx], ys), auc([b[i] for i in idx], ys)
+        return None if ra is None or rb is None else ra - rb
+
+    return {
+        "n": len(sub),
+        **cluster_bootstrap(stat, [str(r["repo"]) for r in sub], n_boot, level, seed),
+    }
+
+
 def _share(num: int, den: int) -> dict[str, object]:
     return {"count": num, "of": den, "share": num / den if den else None}
 
@@ -63,6 +91,7 @@ def analyze(
     examples: int = 5,
     example_metric: str = "chrf",
     exclude_empty: bool = True,
+    vs_metric: str | None = None,
 ) -> dict[str, object]:
     """Per-metric AUC with a repository-clustered bootstrap interval and best
     threshold accuracy, file-set shares and disagreement examples.
@@ -78,6 +107,8 @@ def analyze(
     ``held_out_accuracy`` chooses it on the other repositories (leave one out).
     Disagreements are defined by the best threshold t of ``example_metric``:
     unresolved candidates scoring at least t and resolved ones scoring below it.
+    With ``vs_metric``, the paired AUC difference between it and every other
+    metric is added under ``vs_metric``.
     """
     n_empty = sum(1 for r in rows if r.get("empty_candidate"))
     if exclude_empty:
@@ -157,6 +188,18 @@ def analyze(
         "n_boot": n_boot,
         "seed": seed,
         "metrics": per_metric,
+        "vs_metric": (
+            {
+                "metric": vs_metric,
+                "differences": {
+                    m: paired_auc_difference(rows, vs_metric, m, n_boot, level, seed)
+                    for m in metrics
+                    if m != vs_metric
+                },
+            }
+            if vs_metric
+            else None
+        ),
         "shares": shares,
         "disagreements": disagreements,
     }

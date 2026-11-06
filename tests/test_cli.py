@@ -247,3 +247,36 @@ def test_pair_example_closed_form():
     # added tokens: gold {if, not, xs, :, return, 0.0}; candidate {if, len, (, xs, ), =, =, 0,
     # :, return, 0.0}; 5 shared, so F1 = 2 * 5 / (6 + 11)
     assert aside["token_f1"] == pytest.approx(10 / 17)
+
+
+def test_paired_auc_difference_and_vs_metric(demo_dir, tmp_path, capsys):
+    from patchsim.analysis import paired_auc_difference
+    from patchsim.stats import auc
+
+    rows = score_all(
+        load_candidates(demo_dir / "candidates.jsonl"), load_gold(demo_dir / "gold.jsonl")
+    )
+    rows = attach_outcomes(rows, load_outcomes(demo_dir / "outcomes.jsonl"))
+    y = [r["resolved"] for r in rows]
+    d = paired_auc_difference(rows, "chrf", "file_f1", n_boot=100)
+    want = auc([r["chrf"] for r in rows], y) - auc([r["file_f1"] for r in rows], y)
+    assert d["n"] == 12 and d["value"] == pytest.approx(want)
+    assert d["low"] <= d["value"] <= d["high"]
+    same = paired_auc_difference(rows, "chrf", "chrf", n_boot=50)
+    assert same["value"] == 0.0 and same["low"] == 0.0 and same["high"] == 0.0
+    out = tmp_path / "a.json"
+    rc = main(
+        [
+            "analyze",
+            "--candidates", str(demo_dir / "candidates.jsonl"),
+            "--gold", str(demo_dir / "gold.jsonl"),
+            "--outcomes", str(demo_dir / "outcomes.jsonl"),
+            "--n-boot", "50", "--vs-metric", "chrf", "--json", str(out),
+        ]
+    )  # fmt: skip
+    assert rc == 0
+    md = capsys.readouterr().out
+    assert "## AUC of chrf minus AUC of each other metric" in md
+    res = json.loads(out.read_text())
+    assert set(res["vs_metric"]["differences"]) == set(res["metrics"]) - {"chrf"}
+    assert res["vs_metric"]["differences"]["file_f1"]["value"] == pytest.approx(want)
