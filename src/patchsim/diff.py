@@ -88,18 +88,25 @@ class FilePatch:
 
         For each changed line the name is the closest preceding ``def`` line inside
         the hunk (context, removed or added), falling back to the function named in
-        the hunk header. This is a heuristic: nested functions and decorators that
-        precede a ``def`` are not resolved, and lines outside any visible function
-        are skipped.
+        the hunk header. A later non-blank, non-comment line indented no deeper than
+        that ``def`` ends it (for a name from the header, whose indentation is not
+        shown, a line at column 0 does), and changed lines outside any function are
+        skipped. This is a heuristic: nested functions are attributed to the inner
+        one only, and a multi-line string at column 0 inside a function ends it.
         """
         names: set[str] = set()
         for h in self.hunks:
             m = _DEF_RE.match(h.header)
             current = m.group(1) if m else None
+            indent = -1
             for tag, text in h.lines:
+                body = text.lstrip()
                 m = _DEF_RE.match(text)
                 if m:
-                    current = m.group(1)
+                    current, indent = m.group(1), len(text) - len(body)
+                elif body and not body.startswith("#") and current is not None:
+                    if len(text) - len(body) <= max(indent, 0):
+                        current = None
                 if tag in "+-" and current is not None:
                     names.add(current)
         return names

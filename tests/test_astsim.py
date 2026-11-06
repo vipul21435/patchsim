@@ -14,7 +14,7 @@ from patchsim.diff import parse_diff
 def py_diff(path: str, header: str, removed: list[str], added: list[str], start: int = 1) -> str:
     lines = [f"--- a/{path}", f"+++ b/{path}"]
     lines.append(f"@@ -{start},{len(removed) + 1} +{start},{len(added) + 1} @@ {header}")
-    lines.append(" " + "def f(x):" if not header else " pass_marker = 0")
+    lines.append(" " + "def f(x):" if not header else "     pass_marker = 0")
     lines += ["-" + r for r in removed] + ["+" + a for a in added]
     return "\n".join(lines) + "\n"
 

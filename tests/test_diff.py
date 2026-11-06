@@ -189,3 +189,19 @@ def test_hunk_stated_past_end_of_file_is_found_by_search():
     fp = parse_diff("--- a/f.py\n+++ b/f.py\n@@ -1000,2 +1000,2 @@\n l1\n-l2\n+L2\n").files[0]
     assert apply_file_patch(src, fp) is not None
     assert apply_file_patch(src, fp, max_offset=3) is None
+
+
+def test_changed_functions_stop_at_a_line_outside_the_def():
+    p = parse_diff("--- a/m.py\n+++ b/m.py\n@@ -1,3 +1,4 @@\n def f():\n     return 1\n \n+X = 2\n")
+    assert p.files[0].changed_functions() == set()
+    p = parse_diff(
+        "--- a/m.py\n+++ b/m.py\n@@ -5,3 +5,4 @@ def g():\n     y = 1\n+    y = 2\n     return y\n"
+    )
+    assert p.files[0].changed_functions() == {"g"}
+    p = parse_diff(
+        "--- a/m.py\n+++ b/m.py\n@@ -5,4 +5,5 @@ class A:\n     def h(self):\n"
+        "         a = 1\n+        # note\n+        a = 2\n     @property\n"
+    )
+    assert p.files[0].changed_functions() == {"h"}
+    p = parse_diff("--- a/m.py\n+++ b/m.py\n@@ -9,2 +9,3 @@ def k():\n     pass\n+Y = 1\n z\n")
+    assert p.files[0].changed_functions() == set()
