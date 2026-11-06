@@ -33,17 +33,22 @@ $ python examples/demo.py /tmp/patchsim-demo
 
 12 candidates, 7 resolved, 3 repositories; 500 cluster-bootstrap replicates, seed 0.
 
-| metric | n | AUC | 95% interval | best accuracy | threshold | majority |
-|---|---|---|---|---|---|---|
-| file_precision | 12 | 0.529 | [0.250, 0.750] | 0.583 | 1.000 | 0.583 |
-| file_recall | 12 | 0.529 | [0.250, 0.750] | 0.583 | 1.000 | 0.583 |
-| file_f1 | 12 | 0.529 | [0.250, 0.750] | 0.583 | 1.000 | 0.583 |
-| location_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.583 | 1.000 | 0.583 |
-| token_f1 | 12 | 0.786 | [0.500, 1.000] | 0.750 | 1.000 | 0.583 |
-| chrf | 12 | 0.743 | [0.500, 1.000] | 0.750 | 1.000 | 0.583 |
-| ast_similarity | 12 | 0.657 | [0.625, 0.750] | 0.750 | 0.857 | 0.583 |
-| function_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.583 | 1.000 | 0.583 |
-| edit_size_balance | 12 | 0.500 | [0.500, 0.500] | 0.583 | 1.000 | 0.583 |
+Empty candidate patches: 0, excluded.
+AST mode per candidate: patch_lines 12.
+
+| metric | n | AUC | 95% interval | within-instance AUC | best accuracy | threshold | majority |
+|---|---|---|---|---|---|---|---|
+| file_precision | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
+| file_recall | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
+| file_f1 | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
+| location_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
+| token_f1 | 12 | 0.786 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.583 |
+| chrf | 12 | 0.743 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.583 |
+| ast_similarity | 12 | 0.657 | [0.625, 0.750] | 0.875 [0.750, 1.000] | 0.750 | 0.857 | 0.583 |
+| function_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
+| edit_size_balance | 12 | 0.500 | [0.500, 0.500] | 0.500 [0.500, 0.500] | 0.583 | 1.000 | 0.583 |
+
+Within-instance AUC uses only pairs of candidates for the same instance, one resolved and one not (4 instances, 4 pairs for the first metric).
 
 ## File sets
 
@@ -67,13 +72,28 @@ different files, resolved:
 - gamma__cli-2 (sys-a): cli/compat.py
 ```
 
-These numbers describe the toy data only. The two subcommands on your own files:
+These numbers describe the toy data only. The three subcommands on your own files:
 
 ```
 patchsim score   --candidates preds.jsonl --gold gold.jsonl --out rows.jsonl
 patchsim analyze --candidates preds.jsonl --gold gold.jsonl --outcomes results.json \
                  --n-boot 2000 --json analysis.json --markdown analysis.md
+patchsim compare --candidates preds.jsonl --gold gold.jsonl --outcomes results.json \
+                 --a system-one --b system-two --markdown compare.md
 ```
+
+Options shared by all three:
+
+- `--ignore-new-files` sets aside files a candidate creates that the gold patch does not touch
+  (reproduction scripts and scratch tests that agents often leave in their final diff); the
+  dropped paths are listed per candidate.
+- `--sources DIR` gives the pre-patch files of instance `i` at `DIR/i/<path>`; both patches
+  are applied to them and the AST metric uses the post-patch source (see below).
+- `--include-system NAME` (repeatable) keeps only those systems.
+
+`analyze` leaves empty candidate patches out unless `--keep-empty` is given: an empty patch is
+never resolved and scores zero on every metric, so keeping it lifts every AUC with the same
+easy cases.
 
 Inputs:
 
