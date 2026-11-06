@@ -297,4 +297,21 @@ def parse_diff(text: str) -> Patch:
                 cur.hunks.append(hunk)
                 old_left, new_left = hunk.old_len, hunk.new_len
         i += 1
+    patch.files = _merge_sections(patch.files)
     return patch
+
+
+def _merge_sections(files: list[FilePatch]) -> list[FilePatch]:
+    """One entry per path: the hunks of later sections that name an earlier path
+    are added to the first section for it and sorted by original line, so a
+    candidate that edits one file in several ``diff --git`` sections is scored
+    and applied as one file patch. The first section's old and new paths are kept."""
+    merged: dict[str, FilePatch] = {}
+    for f in files:
+        first = merged.get(f.path)
+        if first is None:
+            merged[f.path] = f
+        else:
+            first.hunks.extend(f.hunks)
+            first.hunks.sort(key=lambda h: h.old_start)
+    return list(merged.values())
