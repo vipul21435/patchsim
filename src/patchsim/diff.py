@@ -216,6 +216,10 @@ def parse_diff(text: str) -> Patch:
             cur = FilePatch(a, b)
             patch.files.append(cur)
             hunk = None
+        elif line.startswith("new file mode") and cur is not None and not cur.hunks:
+            cur.old_path = None
+        elif line.startswith("deleted file mode") and cur is not None and not cur.hunks:
+            cur.new_path = None
         elif line.startswith("--- ") and i + 1 < len(lines) and lines[i + 1].startswith("+++ "):
             old = _strip_prefix(line[4:])
             new = _strip_prefix(lines[i + 1][4:])

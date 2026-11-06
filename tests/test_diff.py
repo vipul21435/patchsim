@@ -133,3 +133,19 @@ def test_without_new_files():
     q, dropped = p.without_new_files({"keep.py"})
     assert dropped == ["reproduce.py"]
     assert q.paths == {"x.py", "keep.py"}
+
+
+def test_binary_new_and_deleted_files_from_git_headers():
+    from patchsim.diff import parse_diff
+
+    p = parse_diff(
+        "diff --git a/data.fits b/data.fits\nnew file mode 100644\nindex 0000000..1111111\n"
+        "Binary files /dev/null and b/data.fits differ\n"
+        "diff --git a/old.bin b/old.bin\ndeleted file mode 100644\n"
+        "Binary files a/old.bin and /dev/null differ\n"
+    )
+    new, gone = p.files
+    assert new.old_path is None and new.path == "data.fits" and not new.hunks
+    assert gone.new_path is None and gone.path == "old.bin"
+    q, dropped = p.without_new_files(set())
+    assert dropped == ["data.fits"] and q.paths == {"old.bin"}
