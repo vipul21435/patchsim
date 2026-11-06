@@ -181,6 +181,21 @@ def _strip_prefix(p: str) -> str | None:
     return p
 
 
+def _starts_file(lines: list[str], i: int) -> bool:
+    """True when line i begins a new file even inside a hunk whose line counts are
+    too large, as hand-written and model-written diffs often have: a ``diff --git``
+    line, or a ``---``/``+++`` pair followed by a hunk header."""
+    line = lines[i]
+    if line.startswith("diff --git "):
+        return True
+    return (
+        line.startswith("--- ")
+        and i + 2 < len(lines)
+        and lines[i + 1].startswith("+++ ")
+        and lines[i + 2].startswith("@@ ")
+    )
+
+
 def parse_diff(text: str) -> Patch:
     """Parse a unified diff (git or plain) into a :class:`Patch`.
 
@@ -195,7 +210,7 @@ def parse_diff(text: str) -> Patch:
     i = 0
     while i < len(lines):
         line = lines[i]
-        if hunk is not None and (old_left > 0 or new_left > 0):
+        if hunk is not None and (old_left > 0 or new_left > 0) and not _starts_file(lines, i):
             if line.startswith("\\"):
                 i += 1
                 continue

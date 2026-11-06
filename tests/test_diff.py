@@ -149,3 +149,16 @@ def test_binary_new_and_deleted_files_from_git_headers():
     assert gone.new_path is None and gone.path == "old.bin"
     q, dropped = p.without_new_files(set())
     assert dropped == ["data.fits"] and q.paths == {"old.bin"}
+
+
+def test_hunk_with_overstated_counts_does_not_swallow_next_file():
+    from patchsim.diff import parse_diff
+
+    p = parse_diff(
+        "--- a/m.py\n+++ b/m.py\n@@ -1,3 +1,5 @@\n def f(xs):\n+    if not xs:\n"
+        "+        return 0\n     return xs[0]\n"
+        "--- /dev/null\n+++ b/r.py\n@@ -0,0 +1 @@\n+print(1)\n"
+    )
+    assert [f.path for f in p.files] == ["m.py", "r.py"]
+    assert p.files[0].removed == [] and len(p.files[0].added) == 2
+    assert p.files[1].old_path is None
