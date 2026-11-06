@@ -22,6 +22,10 @@ pip install git+https://github.com/vipul21435/patchsim
 
 Python 3.10 or newer; no runtime dependencies beyond the standard library.
 
+For development, from a clone: `uv venv --python 3.12`, `uv pip install -e .[dev]`, then
+`uv run pytest --cov=patchsim` (87 tests, offline, about 3 seconds with coverage; 99 % of
+statements covered, every module at 95 % or more).
+
 ## Quickstart
 
 `examples/demo.py` writes a toy benchmark (8 gold patches over 3 made-up repositories, 12
