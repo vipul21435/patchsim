@@ -254,7 +254,8 @@ Sources and licences, checked on 2026-11-06:
 Because no licence is stated, this repository commits none of the data: only the fetch script,
 the scripts that run the analysis, and the reports in `results/` (summary numbers, system names
 and instance ids). The download is about 98 MB (0.9 MB of gold patches, 36 MB of predictions,
-61 MB of source files) into `~/oss/_data/patchsim`.
+61 MB of source files) into `data/` inside the clone (ignored by git; `--out DIR` and the
+first argument of `run_real.sh` choose another directory).
 
 Commands (the second runs every analysis below, about three minutes on a laptop):
 
@@ -266,7 +267,7 @@ bash scripts/run_real.sh            # writes results/
 `run_real.sh` calls, among others:
 
 ```
-D=~/oss/_data/patchsim
+D=data
 patchsim analyze --candidates $D/candidates.jsonl --gold $D/gold.jsonl --outcomes $D/outcomes.jsonl \
   --n-boot 2000 --seed 0 [--ignore-new-files] [--sources $D/sources] --markdown results/....md
 ```

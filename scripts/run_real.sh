@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Reproduce the README results from the data written by scripts/fetch_swebench.py --sources.
-# Usage: bash scripts/run_real.sh [DATA_DIR] [OUT_DIR]
+# Usage: bash scripts/run_real.sh [DATA_DIR] [OUT_DIR]   (defaults: data, results)
 set -euo pipefail
-D=${1:-$HOME/oss/_data/patchsim}
+D=${1:-data}
 OUT=${2:-results}
 mkdir -p "$OUT"
 IN=(--candidates "$D/candidates.jsonl" --gold "$D/gold.jsonl")

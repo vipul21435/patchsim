@@ -1,6 +1,6 @@
 """Fetch SWE-bench Verified gold patches and a few public submissions into a data directory.
 
-Writes, under --out (default ~/oss/_data/patchsim):
+Writes, under --out (default ./data, which git ignores):
 
 - gold.jsonl: instance_id, repo, base_commit, patch for the 500 Verified instances, read
   through the Hugging Face datasets-server rows API for princeton-nlp/SWE-bench_Verified;
@@ -145,7 +145,7 @@ def fetch_sources(out: Path, gold: list[dict], workers: int) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--out", default=str(Path.home() / "oss" / "_data" / "patchsim"))
+    ap.add_argument("--out", default="data", help="data directory (default ./data)")
     ap.add_argument("--submission", action="append", help="submission directory name (repeat)")
     ap.add_argument("--sources", action="store_true", help="also fetch pre-patch Python files")
     ap.add_argument("--workers", type=int, default=8)
