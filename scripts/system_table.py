@@ -10,7 +10,7 @@ COLS = ("file_f1", "location_jaccard", "token_f1", "chrf", "ast_similarity")
 
 
 def main(out_dir: str) -> None:
-    print("| system | n | resolved | " + " | ".join(COLS) + " |")
+    print("| system | n | resolved | " + " | ".join(f"AUC, {m}" for m in COLS) + " |")
     print("|---" * (len(COLS) + 3) + "|")
     for p in sorted(Path(out_dir).glob("system_*.json")):
         res = json.loads(p.read_text())

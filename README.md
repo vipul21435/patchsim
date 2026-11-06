@@ -330,10 +330,10 @@ File sets (from the same two reports):
 | resolved candidates missing a gold file | 80 of 1,230 (0.065) | 80 of 1,230 (0.065) |
 | unresolved candidates touching exactly the gold files | 674 of 1,699 (0.397) | 807 of 1,641 (0.492) |
 
-Per system, new files set aside (`results/systems.md`; one candidate per instance, so no
-within-instance AUC):
+Per system, new files set aside: AUC with 95 % interval for each metric (`results/systems.md`;
+one candidate per instance, so no within-instance AUC):
 
-| system | n | resolved | file_f1 | location_jaccard | token_f1 | chrf | ast_similarity |
+| system | n | resolved | AUC, file_f1 | AUC, location_jaccard | AUC, token_f1 | AUC, chrf | AUC, ast_similarity |
 |---|---|---|---|---|---|---|---|
 | 20240628_autocoderover-v20240620 | 492 | 192 | 0.704 [0.630, 0.733] | 0.764 [0.685, 0.788] | 0.768 [0.669, 0.822] | 0.788 [0.694, 0.838] | 0.745 [0.625, 0.807] |
 | 20240728_sweagent_gpt4o | 398 | 116 | 0.691 [0.599, 0.815] | 0.774 [0.709, 0.812] | 0.749 [0.707, 0.842] | 0.785 [0.750, 0.831] | 0.718 [0.673, 0.768] |
