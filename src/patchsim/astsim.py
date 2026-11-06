@@ -6,8 +6,9 @@ import ast
 import textwrap
 import warnings
 from collections import Counter
+from collections.abc import Mapping
 
-from .diff import FilePatch, Patch
+from .diff import AppliedFile, FilePatch, Patch
 from .textsim import multiset_f1
 
 # Expression-context and wrapper nodes carry no information about the edit.
@@ -73,37 +74,70 @@ def node_types_from_lines(lines: list[str], tag: str = "") -> Counter:
     return out
 
 
-def _enclosing_nodes(tree: ast.Module, lines: set[int]) -> list[ast.AST]:
-    """Innermost function containing each line; top-level statement otherwise."""
-    found: dict[int, ast.AST] = {}
-    funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+def _span(node: ast.AST) -> tuple[int, int]:
+    """First and last line of a statement, decorators included."""
+    first = min([node.lineno] + [d.lineno for d in getattr(node, "decorator_list", [])])
+    return first, getattr(node, "end_lineno", node.lineno)
+
+
+_FUNCS = (ast.FunctionDef, ast.AsyncFunctionDef)
+
+
+def _enclosing_nodes(tree: ast.Module, lines: set[int]) -> list[tuple[ast.AST, bool]]:
+    """The node to count for each line, as (node, header_only) pairs.
+
+    A line inside a function gives the innermost function. Otherwise the module
+    body is searched for the statement containing the line, descending into class
+    bodies, so a class attribute gives that one statement rather than the whole
+    class. A line of a class header (decorators, bases) that is in no body
+    statement gives the class with ``header_only`` set: the ClassDef node and its
+    decorators, bases and keywords, without the body.
+    """
+    found: dict[int, tuple[ast.AST, bool]] = {}
+    funcs = [n for n in ast.walk(tree) if isinstance(n, _FUNCS)]
     for ln in lines:
-        best = None
+        best: ast.AST | None = None
+        header = False
         for f in funcs:
-            end = getattr(f, "end_lineno", f.lineno)
-            if f.lineno <= ln <= end and (best is None or f.lineno >= best.lineno):
+            first, last = _span(f)
+            if first <= ln <= last and (best is None or first >= _span(best)[0]):
                 best = f
         if best is None:
-            for stmt in tree.body:
-                end = getattr(stmt, "end_lineno", stmt.lineno)
-                if stmt.lineno <= ln <= end:
-                    best = stmt
+            body = tree.body
+            while True:
+                stmt = next((n for n in body if _span(n)[0] <= ln <= _span(n)[1]), None)
+                if stmt is None:
+                    header = best is not None
                     break
+                best = stmt
+                if not isinstance(stmt, ast.ClassDef):
+                    break
+                body = stmt.body
         if best is not None:
-            found[id(best)] = best
+            found[id(best)] = (best, header)
     return list(found.values())
 
 
-def node_types_from_source(source: str, changed_lines: list[int]) -> Counter | None:
-    """Multiset of node types of the functions (or top-level statements) of
-    ``source`` that contain any of ``changed_lines``. None if the source does not parse."""
+def _count_class_header(node: ast.ClassDef, out: Counter, tag: str) -> None:
+    out[tag + "ClassDef"] += 1
+    for part in node.decorator_list + node.bases + node.keywords:
+        _count(part, out, tag)
+
+
+def node_types_from_source(source: str, changed_lines: list[int], tag: str = "") -> Counter | None:
+    """Multiset of node types of the functions (or other innermost statements, see
+    :func:`_enclosing_nodes`) of ``source`` that contain any of ``changed_lines``,
+    each type prefixed with ``tag``. None if the source does not parse."""
     try:
         tree = _parse(source)
     except SyntaxError:
         return None
     out: Counter = Counter()
-    for node in _enclosing_nodes(tree, set(changed_lines)):
-        _count(node, out)
+    for node, header_only in _enclosing_nodes(tree, set(changed_lines)):
+        if header_only and isinstance(node, ast.ClassDef):
+            _count_class_header(node, out, tag)
+        else:
+            _count(node, out, tag)
     return out
 
 
@@ -114,15 +148,18 @@ def _patch_node_types(fp: FilePatch) -> Counter:
 def ast_similarity(
     cand: Patch,
     gold: Patch,
-    cand_sources: dict[str, str] | None = None,
-    gold_sources: dict[str, str] | None = None,
+    cand_sources: Mapping[str, str | AppliedFile] | None = None,
+    gold_sources: Mapping[str, str | AppliedFile] | None = None,
 ) -> dict[str, object]:
     """Multiset F1 of AST node types over the changed Python code.
 
-    With ``*_sources`` (post-patch file contents keyed by path) for every changed
-    Python file of both patches, node types come from the functions that contain
-    the added lines (mode ``post_patch_source``). Otherwise they come from the
-    patch lines alone, tagged by side (mode ``patch_lines``). The value is None
+    With ``*_sources`` for every changed Python file of both patches, node types
+    come from the source (mode ``post_patch_source``): the enclosing functions or
+    statements of the added lines in the post-patch file, tagged ``+``, and, when
+    a source is an :class:`AppliedFile`, those of the removed lines in the
+    pre-patch file, tagged ``-``. A plain string source is the post-patch text
+    alone, and removed lines are then not counted. Without sources node types come
+    from the patch lines, tagged by side (mode ``patch_lines``). The value is None
     when neither patch changes a Python file.
     """
     cpy = [f for f in cand.files if _is_python(f.path)]
@@ -130,19 +167,32 @@ def ast_similarity(
     if not cpy and not gpy:
         return {"ast_similarity": None, "ast_mode": None}
 
-    def from_source(files: list[FilePatch], src: dict[str, str] | None) -> Counter | None:
+    def from_source(
+        files: list[FilePatch], src: Mapping[str, str | AppliedFile] | None
+    ) -> Counter | None:
         if src is None:
             return None
         total: Counter = Counter()
         for f in files:
-            if f.new_path is None:
+            entry = src.get(f.path)
+            if isinstance(entry, AppliedFile):
+                sides = [
+                    (entry.post, entry.added_lines, "+"),
+                    (entry.pre, entry.removed_lines, "-"),
+                ]
+            elif f.new_path is None:
                 continue
-            if f.path not in src:
+            elif entry is None:
                 return None
-            c = node_types_from_source(src[f.path], f.added_new_lines())
-            if c is None:
-                return None
-            total += c
+            else:
+                sides = [(entry, f.added_new_lines(), "+")]
+            for text, lines, tag in sides:
+                if not lines:
+                    continue
+                c = node_types_from_source(text, lines, tag)
+                if c is None:
+                    return None
+                total += c
         return total
 
     cs, gs = from_source(cpy, cand_sources), from_source(gpy, gold_sources)

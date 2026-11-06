@@ -180,8 +180,13 @@ Details and the choices behind them:
   on the patch lines (`ast_mode: patch_lines`): the lines are parsed as one dedented block, or
   failing that one by one, with block headers completed by `pass` and unparseable lines (`else:`,
   continuation lines) skipped; node types are tagged by side. With `--sources`, each patch is applied
-  to the pre-patch files and node types come from the whole functions (or top-level statements)
-  of the post-patch file that contain the added lines (`ast_mode: post_patch_source`). Hunks
+  to the pre-patch files (`ast_mode: post_patch_source`); node types come from the innermost
+  function containing each added line in the post-patch file, tagged `+`, and from the innermost
+  function containing each removed line in the pre-patch file, tagged `-`, so a patch that only
+  deletes code is still compared by what it deletes. A line outside any function gives the
+  innermost statement containing it, looking inside class bodies, so a new class attribute
+  counts as one assignment rather than as the whole class; a class header line counts the
+  `ClassDef` node with its decorators and bases only. Hunks
   are applied strictly: context and removed lines must match exactly (trailing whitespace
   aside), at the stated line or the nearest offset, with no fuzz. If a file is missing or a
   hunk does not apply, that candidate falls back to `patch_lines`, and the report counts how

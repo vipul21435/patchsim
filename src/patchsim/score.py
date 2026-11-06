@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .astsim import ast_similarity, function_overlap
-from .diff import Patch, apply_file_patch, parse_diff
+from .diff import AppliedFile, Patch, apply_file_patch_lines, parse_diff
 from .io import Candidate
 from .metrics import edit_size, file_prf, location_overlap
 from .stats import repo_of
@@ -24,17 +24,18 @@ METRICS = (
 )
 
 
-def post_patch_sources(patch: Patch, base_dir: str | Path) -> dict[str, str] | None:
-    """Post-patch text of every changed Python file, from pre-patch files under ``base_dir``.
+def post_patch_sources(patch: Patch, base_dir: str | Path) -> dict[str, AppliedFile] | None:
+    """Every changed Python file of ``patch`` applied to its pre-patch file under ``base_dir``.
 
     ``base_dir/<path>`` holds the file before the patch; a file the patch creates
-    starts empty. Returns None when a pre-patch file is missing or a hunk does not
-    apply, so the caller falls back to the patch-lines AST mode.
+    starts empty and a file it deletes ends empty. Returns None when a pre-patch
+    file is missing or a hunk does not apply, so the caller falls back to the
+    patch-lines AST mode.
     """
     base = Path(base_dir)
-    out: dict[str, str] = {}
+    out: dict[str, AppliedFile] = {}
     for f in patch.files:
-        if not f.path.endswith(".py") or f.new_path is None:
+        if not f.path.endswith(".py"):
             continue
         if f.old_path is None:
             src = ""
@@ -43,10 +44,10 @@ def post_patch_sources(patch: Patch, base_dir: str | Path) -> dict[str, str] | N
             if not p.is_file():
                 return None
             src = p.read_text(encoding="utf-8", errors="replace")
-        new = apply_file_patch(src, f)
-        if new is None:
+        applied = apply_file_patch_lines(src, f)
+        if applied is None:
             return None
-        out[f.path] = new
+        out[f.path] = applied
     return out
 
 

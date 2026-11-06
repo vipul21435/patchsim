@@ -137,20 +137,33 @@ class Patch:
         return Patch(kept), sorted(dropped)
 
 
-def apply_file_patch(source: str, fp: FilePatch, max_offset: int | None = None) -> str | None:
-    """Apply the hunks of ``fp`` to ``source`` and return the post-patch text.
+@dataclass
+class AppliedFile:
+    """A file patch applied to its pre-patch text, with the line numbers (from 1)
+    of the removed lines in ``pre`` and of the added lines in ``post``, taken from
+    where each hunk actually matched."""
 
-    Each hunk is placed where its context and removed lines match the source
-    exactly (trailing whitespace ignored), at the stated line or at the nearest
-    offset from it, searching up to ``max_offset`` lines either way (default: the
-    whole file). Returns None if some hunk matches nowhere. No fuzz is applied.
+    pre: str
+    post: str
+    removed_lines: list[int]
+    added_lines: list[int]
+
+
+def apply_file_patch_lines(
+    source: str, fp: FilePatch, max_offset: int | None = None
+) -> AppliedFile | None:
+    """Apply the hunks of ``fp`` to ``source``; see :func:`apply_file_patch`.
+
+    Returns the pre- and post-patch text and the changed line numbers, or None
+    if some hunk matches nowhere.
     """
     src = source.splitlines()
     out: list[str] = []
+    removed: list[int] = []
+    added: list[int] = []
     pos = 0
     for h in fp.hunks:
         old = [t for tag, t in h.lines if tag != "+"]
-        new = [t for tag, t in h.lines if tag != "-"]
         want = max(h.old_start - 1, pos)
         limit = len(src) if max_offset is None else max_offset
         found = None
@@ -166,10 +179,32 @@ def apply_file_patch(source: str, fp: FilePatch, max_offset: int | None = None) 
                 break
         if found is None:
             return None
-        out += src[pos:found] + new
+        out += src[pos:found]
+        old_no = found
+        for tag, t in h.lines:
+            if tag != "+":
+                old_no += 1
+            if tag != "-":
+                out.append(t)
+            if tag == "-":
+                removed.append(old_no)
+            elif tag == "+":
+                added.append(len(out))
         pos = found + len(old)
     out += src[pos:]
-    return "\n".join(out) + ("\n" if out else "")
+    return AppliedFile(source, "\n".join(out) + ("\n" if out else ""), removed, added)
+
+
+def apply_file_patch(source: str, fp: FilePatch, max_offset: int | None = None) -> str | None:
+    """Apply the hunks of ``fp`` to ``source`` and return the post-patch text.
+
+    Each hunk is placed where its context and removed lines match the source
+    exactly (trailing whitespace ignored), at the stated line or at the nearest
+    offset from it, searching up to ``max_offset`` lines either way (default: the
+    whole file). Returns None if some hunk matches nowhere. No fuzz is applied.
+    """
+    applied = apply_file_patch_lines(source, fp, max_offset)
+    return None if applied is None else applied.post
 
 
 def _strip_prefix(p: str) -> str | None:
