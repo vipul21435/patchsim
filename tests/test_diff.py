@@ -94,3 +94,42 @@ def test_plain_diff_without_git_header_and_no_newline_marker():
 def test_empty_diff():
     p = parse_diff("")
     assert p.files == [] and p.paths == set()
+
+
+def _fp(text):
+    from patchsim.diff import parse_diff
+
+    return parse_diff(text).files[0]
+
+
+BASE = "a\nb\nc\nd\ne\n"
+
+
+def test_apply_file_patch_edit_insert_and_offset():
+    from patchsim.diff import apply_file_patch
+
+    edit = "--- a/x.py\n+++ b/x.py\n@@ -2,3 +2,3 @@\n b\n-c\n+C\n d\n"
+    assert apply_file_patch(BASE, _fp(edit)) == "a\nb\nC\nd\ne\n"
+    # stated line is wrong by two; the nearest exact match is used
+    shifted = edit.replace("@@ -2,3 +2,3 @@", "@@ -4,3 +4,3 @@")
+    assert apply_file_patch(BASE, _fp(shifted)) == "a\nb\nC\nd\ne\n"
+    assert apply_file_patch(BASE, _fp(shifted), max_offset=1) is None
+    insert = "--- a/x.py\n+++ b/x.py\n@@ -5,0 +6,2 @@\n+f\n+g\n"
+    assert apply_file_patch(BASE, _fp(insert)) == BASE + "f\ng\n"
+    new = "--- /dev/null\n+++ b/n.py\n@@ -0,0 +1,2 @@\n+x = 1\n+y = 2\n"
+    assert apply_file_patch("", _fp(new)) == "x = 1\ny = 2\n"
+    bad = "--- a/x.py\n+++ b/x.py\n@@ -2,1 +2,1 @@\n-zzz\n+C\n"
+    assert apply_file_patch(BASE, _fp(bad)) is None
+
+
+def test_without_new_files():
+    from patchsim.diff import parse_diff
+
+    p = parse_diff(
+        "--- /dev/null\n+++ b/reproduce.py\n@@ -0,0 +1 @@\n+print(1)\n"
+        "--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a\n+b\n"
+        "--- /dev/null\n+++ b/keep.py\n@@ -0,0 +1 @@\n+k\n"
+    )
+    q, dropped = p.without_new_files({"keep.py"})
+    assert dropped == ["reproduce.py"]
+    assert q.paths == {"x.py", "keep.py"}

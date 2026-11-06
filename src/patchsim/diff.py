@@ -124,6 +124,53 @@ class Patch:
     def n_removed(self) -> int:
         return sum(len(f.removed) for f in self.files)
 
+    def without_new_files(self, keep: set[str]) -> tuple[Patch, list[str]]:
+        """A copy without the files this patch creates (no old path), except those in
+        ``keep``; also returns the dropped paths. Used to set aside scratch scripts
+        that agents add to a repository and leave in their final diff."""
+        kept, dropped = [], []
+        for f in self.files:
+            if f.old_path is None and f.path not in keep:
+                dropped.append(f.path)
+            else:
+                kept.append(f)
+        return Patch(kept), sorted(dropped)
+
+
+def apply_file_patch(source: str, fp: FilePatch, max_offset: int | None = None) -> str | None:
+    """Apply the hunks of ``fp`` to ``source`` and return the post-patch text.
+
+    Each hunk is placed where its context and removed lines match the source
+    exactly (trailing whitespace ignored), at the stated line or at the nearest
+    offset from it, searching up to ``max_offset`` lines either way (default: the
+    whole file). Returns None if some hunk matches nowhere. No fuzz is applied.
+    """
+    src = source.splitlines()
+    out: list[str] = []
+    pos = 0
+    for h in fp.hunks:
+        old = [t for tag, t in h.lines if tag != "+"]
+        new = [t for tag, t in h.lines if tag != "-"]
+        want = max(h.old_start - 1, pos)
+        limit = len(src) if max_offset is None else max_offset
+        found = None
+        for d in range(0, limit + 1):
+            for at in (want - d, want + d) if d else (want,):
+                window = src[at : at + len(old)]
+                if pos <= at <= len(src) - len(old) and all(
+                    a.rstrip() == b.rstrip() for a, b in zip(window, old, strict=True)
+                ):
+                    found = at
+                    break
+            if found is not None:
+                break
+        if found is None:
+            return None
+        out += src[pos:found] + new
+        pos = found + len(old)
+    out += src[pos:]
+    return "\n".join(out) + ("\n" if out else "")
+
 
 def _strip_prefix(p: str) -> str | None:
     p = p.split("\t", 1)[0].strip()
