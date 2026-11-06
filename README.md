@@ -100,9 +100,34 @@ one pair; `examples/pair.py` scores a hand-made candidate that adds the same gua
 patch in other words and leaves a reproduction script behind:
 
 ```
-$ python examples/pair.py     # abridged
-all files:            file_precision 0.5, file_f1 0.667, token_f1 0.323, chrf 0.393
-new files set aside:  file_precision 1.0, file_f1 1.0,   token_f1 0.588, chrf 0.577
+$ python examples/pair.py
+all files:
+  file_precision: 0.5
+  file_recall: 1.0
+  file_f1: 0.667
+  location_jaccard: 0.5
+  token_f1: 0.323
+  chrf: 0.393
+  ast_similarity: 0.348
+  ast_mode: patch_lines
+  function_jaccard: 1.0
+  same_functions: True
+  edit_size_ratio: 2.0
+  extra_files: ['reproduce.py']
+new files set aside:
+  file_precision: 1.0
+  file_recall: 1.0
+  file_f1: 1.0
+  location_jaccard: 1.0
+  token_f1: 0.588
+  chrf: 0.577
+  ast_similarity: 0.533
+  ast_mode: patch_lines
+  function_jaccard: 1.0
+  same_functions: True
+  edit_size_ratio: 1.0
+  extra_files: []
+  dropped_files: ['reproduce.py']
 ```
 
 Inputs:

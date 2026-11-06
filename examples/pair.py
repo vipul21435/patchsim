@@ -7,8 +7,6 @@ different spelling and also leaves a reproduction script behind.
 
 from __future__ import annotations
 
-import json
-
 from patchsim.score import score_pair
 
 GOLD = """\
@@ -64,4 +62,5 @@ def run() -> dict[str, dict]:
 if __name__ == "__main__":
     for label, row in run().items():
         print(f"{label}:")
-        print(json.dumps(row, indent=2, default=str))
+        for k, v in row.items():
+            print(f"  {k}: {round(v, 3) if isinstance(v, float) else v}")
