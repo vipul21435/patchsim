@@ -70,3 +70,34 @@ def test_bad_jsonl(tmp_path):
     q.write_text("[1, 2]")
     with pytest.raises(ValueError):
         load_gold(q)
+
+
+def test_score_pair_ignore_new_files_and_post_patch_source(tmp_path):
+    from patchsim.score import post_patch_sources, score_pair
+
+    base = tmp_path / "base"
+    (base / "pkg").mkdir(parents=True)
+    (base / "pkg" / "m.py").write_text("def f(x):\n    return x\n\n\ndef g():\n    pass\n")
+    gold = (
+        "--- a/pkg/m.py\n+++ b/pkg/m.py\n@@ -1,2 +1,2 @@\n"
+        " def f(x):\n-    return x\n+    return x + 1\n"
+    )
+    cand = gold + "--- /dev/null\n+++ b/reproduce.py\n@@ -0,0 +1 @@\n+print(1)\n"
+    plain = score_pair(cand, gold)
+    assert plain["file_precision"] == 0.5 and plain["extra_files"] == ["reproduce.py"]
+    r = score_pair(cand, gold, ignore_new_files=True, base_dir=base)
+    assert r["dropped_files"] == ["reproduce.py"]
+    assert r["file_f1"] == 1.0 and r["same_files"] is True
+    assert r["ast_mode"] == "post_patch_source" and r["ast_similarity"] == 1.0
+    # missing pre-patch file: fall back to patch lines
+    r2 = score_pair(cand, gold, ignore_new_files=True, base_dir=tmp_path / "nowhere")
+    assert r2["ast_mode"] == "patch_lines"
+    # a hunk that does not apply also falls back
+    bad = gold.replace(" def f(x):", " def h(x):")
+    assert post_patch_sources(parse_diff(bad), base) is None
+
+
+def parse_diff(text):
+    from patchsim.diff import parse_diff as p
+
+    return p(text)

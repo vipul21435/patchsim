@@ -27,6 +27,16 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--candidates", required=True, help="candidate patches, JSONL")
         sp.add_argument("--gold", required=True, help="gold patches, JSONL or JSON list")
         sp.add_argument("--system", help="system name to use for every candidate")
+        sp.add_argument(
+            "--ignore-new-files",
+            action="store_true",
+            help="drop files a candidate creates that the gold patch does not touch",
+        )
+        sp.add_argument(
+            "--sources",
+            help="directory with pre-patch files at <dir>/<instance_id>/<path>; "
+            "switches the AST metric to post-patch source where both patches apply",
+        )
 
     s = sub.add_parser("score", help="score every candidate against its gold patch")
     common(s)
@@ -46,7 +56,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _rows(args: argparse.Namespace) -> list[dict]:
-    return score_all(load_candidates(args.candidates, args.system), load_gold(args.gold))
+    return score_all(
+        load_candidates(args.candidates, args.system),
+        load_gold(args.gold),
+        ignore_new_files=args.ignore_new_files,
+        sources=args.sources,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -113,3 +113,16 @@ def test_cli_no_matches(tmp_path, capsys):
 def test_cli_help(capsys):
     assert main([]) == 0
     assert "analyze" in capsys.readouterr().out
+
+
+def test_cli_ignore_new_files_flag(demo_dir, tmp_path):
+    out = tmp_path / "rows.jsonl"
+    args = [
+        "--candidates",
+        str(demo_dir / "candidates.jsonl"),
+        "--gold",
+        str(demo_dir / "gold.jsonl"),
+    ]
+    assert main(["score", *args, "--ignore-new-files", "--out", str(out)]) == 0
+    rows = [json.loads(x) for x in out.read_text().splitlines()]
+    assert all("dropped_files" in r for r in rows)

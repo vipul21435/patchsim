@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from .astsim import ast_similarity, function_overlap
-from .diff import parse_diff
+from .diff import Patch, apply_file_patch, parse_diff
 from .io import Candidate
 from .metrics import edit_size, file_prf, location_overlap
 from .stats import repo_of
@@ -22,25 +24,77 @@ METRICS = (
 )
 
 
-def score_pair(candidate: str, gold: str) -> dict[str, object]:
-    """All metrics for one candidate diff against one gold diff."""
+def post_patch_sources(patch: Patch, base_dir: str | Path) -> dict[str, str] | None:
+    """Post-patch text of every changed Python file, from pre-patch files under ``base_dir``.
+
+    ``base_dir/<path>`` holds the file before the patch; a file the patch creates
+    starts empty. Returns None when a pre-patch file is missing or a hunk does not
+    apply, so the caller falls back to the patch-lines AST mode.
+    """
+    base = Path(base_dir)
+    out: dict[str, str] = {}
+    for f in patch.files:
+        if not f.path.endswith(".py") or f.new_path is None:
+            continue
+        if f.old_path is None:
+            src = ""
+        else:
+            p = base / f.old_path
+            if not p.is_file():
+                return None
+            src = p.read_text(encoding="utf-8", errors="replace")
+        new = apply_file_patch(src, f)
+        if new is None:
+            return None
+        out[f.path] = new
+    return out
+
+
+def score_pair(
+    candidate: str,
+    gold: str,
+    ignore_new_files: bool = False,
+    base_dir: str | Path | None = None,
+) -> dict[str, object]:
+    """All metrics for one candidate diff against one gold diff.
+
+    ``ignore_new_files`` drops files the candidate creates that the gold patch does
+    not touch (listed in ``dropped_files``). ``base_dir`` holds the pre-patch files
+    of the instance and switches the AST metric to post-patch source when both
+    patches apply.
+    """
     c, g = parse_diff(candidate), parse_diff(gold)
     row: dict[str, object] = {}
+    if ignore_new_files:
+        c, dropped = c.without_new_files(g.paths)
+        row["dropped_files"] = dropped
     row.update(file_prf(c, g))
     row["same_files"] = c.paths == g.paths
     row["extra_files"] = sorted(c.paths - g.paths)
     row.update(location_overlap(c, g))
     row["token_f1"] = token_f1(c, g)
     row["chrf"] = chrf(c, g)
-    row.update(ast_similarity(c, g))
+    cs = gs = None
+    if base_dir is not None:
+        cs, gs = post_patch_sources(c, base_dir), post_patch_sources(g, base_dir)
+    row.update(ast_similarity(c, g, cs, gs))
     row.update(function_overlap(c, g))
     row.update(edit_size(c, g))
     row["empty_candidate"] = not c.files
     return row
 
 
-def score_all(candidates: list[Candidate], gold: dict[str, str]) -> list[dict[str, object]]:
-    """One row per candidate whose instance has a gold patch; others are skipped."""
+def score_all(
+    candidates: list[Candidate],
+    gold: dict[str, str],
+    ignore_new_files: bool = False,
+    sources: str | Path | None = None,
+) -> list[dict[str, object]]:
+    """One row per candidate whose instance has a gold patch; others are skipped.
+
+    ``sources`` is a directory with the pre-patch files of instance ``i`` under
+    ``sources/i/`` (see :func:`post_patch_sources`).
+    """
     rows = []
     for cand in candidates:
         if cand.instance_id not in gold:
@@ -50,6 +104,7 @@ def score_all(candidates: list[Candidate], gold: dict[str, str]) -> list[dict[st
             "system": cand.system,
             "repo": repo_of(cand.instance_id),
         }
-        row.update(score_pair(cand.patch, gold[cand.instance_id]))
+        base = Path(sources) / cand.instance_id if sources is not None else None
+        row.update(score_pair(cand.patch, gold[cand.instance_id], ignore_new_files, base))
         rows.append(row)
     return rows
