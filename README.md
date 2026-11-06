@@ -190,12 +190,132 @@ random effect per cluster.
 
 ## Results on real public data
 
-Not run yet. The planned source is the SWE-bench experiments repository
-(https://github.com/SWE-bench/experiments) for per-submission resolved lists, with gold patches
-from the SWE-bench Verified dataset card (https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified).
-As checked on 2026-11-06, neither page states a licence (the GitHub API reports no licence for
-the repository and the dataset card has no licence field), and the experiments repository keeps
-predictions outside git, so only fetch scripts and summary numbers will be committed here.
+Data: the 500 instances of SWE-bench Verified with their gold patches, and the final patches of
+six public submissions to its leaderboard, 2,954 candidates in all. Outcomes are the per-instance
+resolved lists that the submissions report.
+
+| submission (directory name in the experiments repository) | candidates | resolved |
+|---|---|---|
+| 20240628_autocoderover-v20240620 | 492 | 192 |
+| 20240728_sweagent_gpt4o | 465 | 116 |
+| 20241028_agentless-1.5_gpt4o | 500 | 194 |
+| 20241029_OpenHands-CodeAct-2.1-sonnet-20241022 | 499 | 265 |
+| 20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128 | 500 | 151 |
+| 20250225_sweagent_claude-3-7-sonnet | 498 | 312 |
+
+Sources and licences, checked on 2026-11-06:
+
+- Gold patches: princeton-nlp/SWE-bench_Verified, https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified,
+  read through the Hugging Face datasets-server rows API. The dataset card has no licence field
+  and states no licence.
+- Resolved lists: `evaluation/verified/<submission>/results/results.json` in
+  https://github.com/SWE-bench/experiments. The GitHub API reports no licence for the repository
+  and its README states none.
+- Candidate patches: `all_preds.jsonl` of each submission in the public bucket that the
+  submission's `metadata.yaml` names (`s3://swe-bench-submissions/verified/<submission>/`).
+- Pre-patch files for the post-patch AST mode: raw.githubusercontent.com at each instance's
+  `base_commit`, for every Python file a gold or candidate patch modifies (1,739 files).
+
+Because no licence is stated, this repository commits none of the data: only the fetch script,
+the scripts that run the analysis, and the reports in `results/` (summary numbers, system names
+and instance ids). The download is about 98 MB (0.9 MB of gold patches, 36 MB of predictions,
+61 MB of source files) into `~/oss/_data/patchsim`.
+
+Commands (the second runs every analysis below, about three minutes on a laptop):
+
+```
+uv run python scripts/fetch_swebench.py --sources
+bash scripts/run_real.sh            # writes results/
+```
+
+`run_real.sh` calls, among others:
+
+```
+D=~/oss/_data/patchsim
+patchsim analyze --candidates $D/candidates.jsonl --gold $D/gold.jsonl --outcomes $D/outcomes.jsonl \
+  --n-boot 2000 --seed 0 [--ignore-new-files] [--sources $D/sources] --markdown results/....md
+```
+
+All six systems pooled; AUC with 95 % repository-clustered bootstrap intervals (2,000
+replicates, seed 0); empty patches left out. "All files" scores every file of every candidate
+(`results/analysis_all_files.md`, 2,929 candidates); "new files set aside" adds
+`--ignore-new-files` (`results/analysis_ignore_new.md`, 2,871 candidates: 58 more become empty
+because they only created files, all of them unresolved). The best accuracy is for the second
+setting, against a majority baseline of 0.572 (predict every candidate unresolved).
+
+| metric | AUC, all files | AUC, new files set aside | within-instance AUC, new files set aside | best accuracy |
+|---|---|---|---|---|
+| file_precision | 0.657 [0.611, 0.687] | 0.646 [0.614, 0.686] | 0.615 [0.571, 0.680] | 0.600 |
+| file_recall | 0.700 [0.655, 0.720] | 0.690 [0.652, 0.714] | 0.613 [0.581, 0.642] | 0.653 |
+| file_f1 | 0.702 [0.657, 0.732] | 0.702 [0.665, 0.744] | 0.624 [0.577, 0.686] | 0.666 |
+| location_jaccard | 0.762 [0.724, 0.775] | 0.762 [0.726, 0.778] | 0.737 [0.698, 0.778] | 0.734 |
+| token_f1 | 0.731 [0.695, 0.741] | 0.781 [0.747, 0.800] | 0.740 [0.694, 0.787] | 0.739 |
+| chrf | 0.779 [0.748, 0.790] | 0.805 [0.775, 0.824] | 0.768 [0.724, 0.819] | 0.759 |
+| ast_similarity (patch lines) | 0.703 [0.654, 0.719] | 0.752 [0.696, 0.777] | 0.705 [0.645, 0.750] | 0.727 |
+| ast_similarity (post-patch source) | - | 0.772 [0.754, 0.818] | 0.706 [0.661, 0.775] | 0.741 |
+| function_jaccard | 0.620 [0.583, 0.705] | 0.616 [0.577, 0.706] | 0.605 [0.569, 0.650] | 0.649 |
+| edit_size_balance | 0.617 [0.581, 0.629] | 0.653 [0.627, 0.672] | 0.579 [0.538, 0.631] | 0.634 |
+
+The post-patch row is from `results/analysis_post_patch.md` (`--ignore-new-files --sources`);
+2,863 of its 2,871 candidates used the post-patch source and 8 fell back to patch lines. The
+within-instance AUC uses 1,912 resolved/unresolved pairs from 295 instances.
+
+![ROC curves of six metrics, new files set aside](results/roc.png)
+
+`results/roc.png`: ROC curves for the "new files set aside" setting, AST on patch lines,
+drawn by `scripts/plot_roc.py` with matplotlib (Agg).
+
+File sets (from the same two reports):
+
+| share | all files | new files set aside |
+|---|---|---|
+| resolved candidates touching a file outside the gold patch | 296 of 1,230 (0.241) | 125 of 1,230 (0.102) |
+| resolved candidates missing a gold file | 80 of 1,230 (0.065) | 80 of 1,230 (0.065) |
+| unresolved candidates touching exactly the gold files | 674 of 1,699 (0.397) | 807 of 1,641 (0.492) |
+
+Per system, new files set aside (`results/systems.md`; one candidate per instance, so no
+within-instance AUC):
+
+| system | n | resolved | file_f1 | location_jaccard | token_f1 | chrf | ast_similarity |
+|---|---|---|---|---|---|---|---|
+| 20240628_autocoderover-v20240620 | 492 | 192 | 0.704 [0.630, 0.733] | 0.764 [0.685, 0.788] | 0.768 [0.669, 0.822] | 0.788 [0.694, 0.838] | 0.745 [0.625, 0.807] |
+| 20240728_sweagent_gpt4o | 398 | 116 | 0.691 [0.599, 0.815] | 0.774 [0.709, 0.812] | 0.749 [0.707, 0.842] | 0.785 [0.750, 0.831] | 0.718 [0.673, 0.768] |
+| 20241028_agentless-1.5_gpt4o | 496 | 194 | 0.717 [0.687, 0.767] | 0.757 [0.721, 0.802] | 0.797 [0.750, 0.822] | 0.805 [0.765, 0.832] | 0.775 [0.716, 0.805] |
+| 20241029_OpenHands-CodeAct-2.1-sonnet-20241022 | 490 | 265 | 0.699 [0.657, 0.740] | 0.760 [0.704, 0.786] | 0.766 [0.706, 0.791] | 0.788 [0.754, 0.812] | 0.734 [0.678, 0.754] |
+| 20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128 | 500 | 151 | 0.723 [0.691, 0.792] | 0.747 [0.671, 0.813] | 0.820 [0.762, 0.873] | 0.837 [0.797, 0.888] | 0.787 [0.704, 0.826] |
+| 20250225_sweagent_claude-3-7-sonnet | 495 | 312 | 0.664 [0.609, 0.685] | 0.737 [0.700, 0.772] | 0.759 [0.714, 0.800] | 0.791 [0.746, 0.818] | 0.733 [0.671, 0.766] |
+
+Two systems with the same agent scaffold and different models (`results/compare_sweagent.md`,
+`patchsim compare ... --ignore-new-files --a 20240728_sweagent_gpt4o --b
+20250225_sweagent_claude-3-7-sonnet`): on 463 shared instances B resolved 293 and A 116 (both
+110, only A 6, only B 183), and B's patches are closer to gold on every metric (chrF mean 0.520
+against 0.313, difference 0.207 [0.130, 0.239]). The AUC of chrF is the same for both (0.786
+and 0.794, difference 0.008 [−0.073, 0.047]): the more capable system writes patches more like
+the gold patch, but similarity is no better a proxy for its correctness.
+
+What the numbers say:
+
+- Character n-grams (chrF) separate resolved from unresolved candidates best of the metrics
+  here, at AUC 0.805 pooled and 0.768 within an instance. Best-threshold accuracy is 0.759
+  against a majority baseline of 0.572: about one candidate in four is misclassified by the
+  best single cut-off, which is far from a substitute for running tests.
+- File-level agreement is a weak proxy: within an instance its AUC is 0.62. Nearly half of the
+  unresolved candidates (0.492) edit exactly the gold files, and 10 % of resolved ones edit some
+  other file even after created files are set aside.
+- Agents leave reproduction scripts and scratch tests in their final diffs. Counting them
+  doubles the share of resolved candidates "outside the gold files" (0.241 against 0.102) and
+  costs the token and AST metrics 0.05 of AUC.
+- Every pooled AUC is higher than its within-instance counterpart, by 0.01 to 0.08: part of the
+  pooled signal is that easy tasks have small gold patches that are easy to match.
+- With 12 repositories, and Django holding 231 of the 500 instances, the repository-clustered
+  intervals are wide and often asymmetric around the point estimate; they are honest about how
+  few independent repositories there are, not a sign of an error.
+- Disagreement examples worth reading (from `results/analysis_ignore_new.md`):
+  psf__requests-1766 from 20240628_autocoderover-v20240620 makes the same one-line change as the
+  gold patch (chrF 1.000; the gold patch also strips whitespace on a blank line) and is recorded
+  unresolved, so the outcome rather than the metric deserves a second look; patchsim does not
+  rerun tests. sympy__sympy-22456 is resolved by two systems with chrF 0.015, a different fix
+  from the gold patch.
 
 ## Limitations
 
