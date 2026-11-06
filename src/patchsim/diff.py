@@ -216,19 +216,46 @@ def _strip_prefix(p: str) -> str | None:
     return p
 
 
-def _starts_file(lines: list[str], i: int) -> bool:
+def _header_path(p: str) -> bool:
+    """True for a ``---``/``+++`` path written the way diff tools write them."""
+    p = p.split("\t", 1)[0].strip()
+    return p == "/dev/null" or p.startswith(("a/", "b/"))
+
+
+def _starts_file(lines: list[str], i: int, old_left: int = 0, new_left: int = 0) -> bool:
     """True when line i begins a new file even inside a hunk whose line counts are
     too large, as hand-written and model-written diffs often have: a ``diff --git``
-    line, or a ``---``/``+++`` pair followed by a hunk header."""
+    line, or a ``---``/``+++`` pair followed by a hunk header. Inside a hunk that
+    can still take a removed and an added line, the pair counts as a header only
+    when both paths are ``a/...``, ``b/...`` or ``/dev/null``, so a removed
+    ``-- comment`` and an added ``++ comment`` stay in the hunk."""
     line = lines[i]
     if line.startswith("diff --git "):
         return True
-    return (
+    if not (
         line.startswith("--- ")
         and i + 2 < len(lines)
         and lines[i + 1].startswith("+++ ")
         and lines[i + 2].startswith("@@ ")
-    )
+    ):
+        return False
+    if old_left > 0 and new_left > 0:
+        return _header_path(line[4:]) and _header_path(lines[i + 1][4:])
+    return True
+
+
+def _git_paths(line: str) -> tuple[str | None, str | None]:
+    """Old and new path of a ``diff --git a/X b/Y`` line. Paths may contain spaces:
+    the split is at the `` b/`` that makes both sides equal, else the first one."""
+    rest = line[len("diff --git ") :].strip()
+    cuts = [k for k in range(len(rest)) if rest.startswith(" b/", k)]
+    if rest.startswith("a/") and cuts:
+        k = next((k for k in cuts if rest[2:k] == rest[k + 3 :]), cuts[0])
+        return _strip_prefix(rest[:k]), _strip_prefix(rest[k + 1 :])
+    parts = rest.split()
+    a = _strip_prefix(parts[0]) if parts else None
+    b = _strip_prefix(parts[1]) if len(parts) > 1 else None
+    return a, b
 
 
 def parse_diff(text: str) -> Patch:
@@ -245,7 +272,11 @@ def parse_diff(text: str) -> Patch:
     i = 0
     while i < len(lines):
         line = lines[i]
-        if hunk is not None and (old_left > 0 or new_left > 0) and not _starts_file(lines, i):
+        if (
+            hunk is not None
+            and (old_left > 0 or new_left > 0)
+            and not _starts_file(lines, i, old_left, new_left)
+        ):
             if line.startswith("\\"):
                 i += 1
                 continue
@@ -260,10 +291,7 @@ def parse_diff(text: str) -> Patch:
                 continue
             hunk = None
         if line.startswith("diff --git "):
-            parts = line.split()
-            a = _strip_prefix(parts[2]) if len(parts) > 2 else None
-            b = _strip_prefix(parts[3]) if len(parts) > 3 else None
-            cur = FilePatch(a, b)
+            cur = FilePatch(*_git_paths(line))
             patch.files.append(cur)
             hunk = None
         elif line.startswith("new file mode") and cur is not None and not cur.hunks:

@@ -162,3 +162,19 @@ def test_hunk_with_overstated_counts_does_not_swallow_next_file():
     assert [f.path for f in p.files] == ["m.py", "r.py"]
     assert p.files[0].removed == [] and len(p.files[0].added) == 2
     assert p.files[1].old_path is None
+
+
+def test_zero_context_lines_that_look_like_file_headers_stay_in_the_hunk():
+    p = parse_diff(
+        "--- a/q.sql\n+++ b/q.sql\n@@ -3 +3 @@\n--- old note\n+++ new note\n@@ -9 +9 @@\n-x\n+y\n"
+    )
+    assert [f.path for f in p.files] == ["q.sql"]
+    assert p.files[0].removed == ["-- old note", "x"]
+    assert p.files[0].added == ["++ new note", "y"]
+
+
+def test_git_header_path_with_a_space():
+    p = parse_diff("diff --git a/my file.py b/my file.py\nnew file mode 100644\nindex 0..e69\n")
+    assert p.paths == {"my file.py"}
+    p = parse_diff("diff --git a/old name.txt b/new name.txt\nsimilarity index 100%\n")
+    assert p.files[0].old_path == "old name.txt" and p.files[0].new_path == "new name.txt"
