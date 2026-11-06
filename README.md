@@ -319,18 +319,46 @@ What the numbers say:
 
 ## Limitations
 
-- Status: the metrics, the analysis and the `score` and `analyze` subcommands work. Not yet
-  implemented: the `compare` mode for two systems, a command-line option to supply repository
-  content for the post-patch AST mode (the Python function accepts it), the fetch scripts and
-  results on real data, and charts.
+- Not implemented: rerunning tests (outcomes are taken as given, including any flaky or
+  mislabelled ones); a data-flow term or subtree matching in the AST metric (CodeBLEU has
+  both); several gold patches per instance; non-Python AST metrics (other languages get the
+  file, location, token and chrF metrics only); fuzzy hunk application.
 - Function detection from the patch is a heuristic: nested functions, methods with the same name
   in different classes, and changes outside any visible `def` are not resolved.
 - Location overlap compares positions in the original file only; two patches that insert the
   same code one line apart share nothing.
 - Similarity is measured against one gold patch; an instance with several valid fixes penalises
   every fix but the one recorded.
+- `--ignore-new-files` drops every file a candidate creates outside the gold paths, including a
+  new module that a correct fix needs; the dropped paths are listed so this can be checked.
+- The real-data results cover six submissions from 2024 and early 2025 on one benchmark of 12
+  Python repositories; they say nothing about other benchmarks, languages or newer systems.
+  The repository-clustered bootstrap has only 12 clusters, and the percentile interval is
+  known to run short with few clusters (the simulation test allows coverage down to 0.85).
+- The pooled analysis treats each candidate as one observation; candidates for the same
+  instance are correlated through the instance as well as the repository, which the
+  repository-level resampling covers but does not model.
 
-## Related tools
+## Related work and tools
+
+Public work:
+
+- SWE-bench (Jimenez et al., "SWE-bench: Can Language Models Resolve Real-World GitHub
+  Issues?", arXiv 2310.06770, https://arxiv.org/abs/2310.06770) defines the task, the gold
+  patches and the test-based resolution that this tool treats as ground truth.
+- chrF (Popović, 2015, https://aclanthology.org/W15-3049/) is the character n-gram F-score the
+  `chrf` metric follows.
+- CodeBLEU (Ren et al., "CodeBLEU: a Method for Automatic Evaluation of Code Synthesis", arXiv
+  2009.10297, https://arxiv.org/abs/2009.10297) adds syntax and data-flow matches to n-gram
+  overlap; the AST metric here is a reduced form of its syntax term.
+- Smith, Barr, Le Goues and Brun, "Is the cure worse than the disease? Overfitting in automated
+  program repair" (ESEC/FSE 2015, https://doi.org/10.1145/2786805.2786825) evaluate repair
+  tools with tests independent of the ones used during repair and find patches that pass the
+  repair tests while breaking untested behaviour. Here the test outcome is the label, so a
+  resolved candidate that differs from the gold patch may be a different correct fix or one that
+  overfits the tests; patchsim cannot tell them apart.
+
+Sibling tools by the same author:
 
 - [evalstats](https://github.com/vipul21435/evalstats): intervals and paired tests for evaluation results.
 - [patchmin](https://github.com/vipul21435/patchmin): the minimal subset of a patch that still fixes the tests.
