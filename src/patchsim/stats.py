@@ -84,6 +84,40 @@ def clustered_bootstrap_auc(
     }
 
 
+def stratum_pairs(
+    scores: Sequence[float], labels: Sequence[bool], strata: Sequence[str]
+) -> dict[str, tuple[float, int]]:
+    """Per stratum, (U, P): U counts the (resolved, unresolved) pairs inside the
+    stratum where the resolved item scores higher, ties counting 1/2, and P is the
+    number of such pairs. Strata with one class only have P = 0 and are omitted."""
+    groups: dict[str, list[int]] = defaultdict(list)
+    for i, k in enumerate(strata):
+        groups[k].append(i)
+    out: dict[str, tuple[float, int]] = {}
+    for k, idx in groups.items():
+        a = auc([scores[i] for i in idx], [labels[i] for i in idx])
+        if a is not None:
+            n_pos = sum(1 for i in idx if labels[i])
+            pairs = n_pos * (len(idx) - n_pos)
+            out[k] = (a * pairs, pairs)
+    return out
+
+
+def stratified_auc(
+    scores: Sequence[float], labels: Sequence[bool], strata: Sequence[str]
+) -> float | None:
+    """AUC over within-stratum pairs only: sum of U over strata / sum of P.
+
+    With strata = instances, this is the probability that, for the same task, a
+    resolved candidate is more similar to the gold patch than an unresolved one,
+    which removes the part of the pooled AUC that comes from tasks differing in
+    how easy they are. None when no stratum has both classes.
+    """
+    parts = stratum_pairs(scores, labels, strata)
+    total = sum(p for _, p in parts.values())
+    return sum(u for u, _ in parts.values()) / total if total else None
+
+
 def cluster_bootstrap(
     stat: Callable[[list[int]], float | None],
     clusters: Sequence[str],

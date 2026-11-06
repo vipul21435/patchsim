@@ -135,3 +135,41 @@ def test_roc_points_area_equals_auc():
         area = sum((x2 - x1) * (y1 + y2) / 2 for (x1, y1), (x2, y2) in segs)
         assert pts[0] == (0.0, 0.0) and pts[-1] == (1.0, 1.0)
         assert area == pytest.approx(auc(s, y))
+
+
+def test_stratified_auc_matches_brute_force():
+    from patchsim.stats import stratified_auc
+
+    rng = random.Random(9)
+    for _ in range(100):
+        n = rng.randint(2, 30)
+        s = [rng.choice([0.0, 0.5, 1.0, rng.random()]) for _ in range(n)]
+        y = [rng.random() < 0.5 for _ in range(n)]
+        g = [rng.choice("abcd") for _ in range(n)]
+        num = den = 0.0
+        for i in range(n):
+            for j in range(n):
+                if g[i] == g[j] and y[i] and not y[j]:
+                    den += 1
+                    num += 1.0 if s[i] > s[j] else 0.5 if s[i] == s[j] else 0.0
+        got = stratified_auc(s, y, g)
+        if den == 0:
+            assert got is None
+        else:
+            assert got == pytest.approx(num / den)
+
+
+def test_stratified_auc_removes_between_stratum_signal():
+    from patchsim.stats import stratified_auc
+
+    # An easy task where most candidates resolve and all are similar to gold, and a hard
+    # one where few resolve and none are; inside each task the more similar candidate
+    # is the unresolved one. Pooled AUC sees mostly the task effect.
+    s = [0.9, 0.8, 0.8, 0.8, 0.2, 0.1, 0.1, 0.1]
+    y = [False, True, True, True, False, False, False, True]
+    g = ["easy"] * 4 + ["hard"] * 4
+    # pooled: 3 easy positives beat 3 of 4 negatives each; the hard positive ties two
+    # negatives and loses to one: (3 * 3 + 1.0) / (4 * 4)
+    assert auc(s, y) == pytest.approx(10 / 16)
+    # within: easy 3 pairs all lost; hard 3 pairs: 0 + 0.5 + 0.5
+    assert stratified_auc(s, y, g) == pytest.approx(1 / 6)
