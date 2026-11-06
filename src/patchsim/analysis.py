@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from .io import outcome_for
 from .score import METRICS
-from .stats import best_threshold, cluster_bootstrap, clustered_bootstrap_auc, stratum_pairs
+from .stats import (
+    best_threshold,
+    cluster_bootstrap,
+    clustered_bootstrap_auc,
+    held_out_accuracy,
+    stratum_pairs,
+)
 
 
 def attach_outcomes(rows: list[dict], outcomes: dict) -> list[dict]:
@@ -67,6 +73,11 @@ def analyze(
     patches are dropped first unless ``exclude_empty`` is False: they can never be
     resolved and score zero on every metric, so keeping them inflates every AUC by
     the same easy cases.
+
+    ``accuracy`` is in-sample: the threshold is chosen and scored on the same rows.
+    ``held_out_accuracy`` chooses it on the other repositories (leave one out).
+    Disagreements are defined by the best threshold t of ``example_metric``:
+    unresolved candidates scoring at least t and resolved ones scoring below it.
     """
     n_empty = sum(1 for r in rows if r.get("empty_candidate"))
     if exclude_empty:
@@ -78,6 +89,7 @@ def analyze(
         y = [bool(r["resolved"]) for r in sub]
         boot = clustered_bootstrap_auc(s, y, [str(r["repo"]) for r in sub], n_boot, level, seed)
         per_metric[m] = {"n": len(sub), "n_resolved": sum(y), **boot, **best_threshold(s, y)}
+        per_metric[m].update(held_out_accuracy(s, y, [str(r["repo"]) for r in sub]))
         per_metric[m]["within_instance"] = within_instance_auc(sub, m, n_boot, level, seed)
 
     resolved = [r for r in rows if r["resolved"]]
@@ -94,22 +106,33 @@ def analyze(
         ),
     }
 
-    def pick(rs: list[dict], reverse: bool) -> list[dict]:
-        keyed = [r for r in rs if r.get(example_metric) is not None]
-        keyed.sort(key=lambda r: (r[example_metric], r["instance_id"]), reverse=reverse)
+    keyed = [r for r in rows if r.get(example_metric) is not None]
+    t = best_threshold(
+        [float(r[example_metric]) for r in keyed], [bool(r["resolved"]) for r in keyed]
+    )["threshold"]
+    high = [r for r in keyed if not r["resolved"] and t is not None and r[example_metric] >= t]
+    low = [r for r in keyed if r["resolved"] and t is not None and r[example_metric] < t]
+    high.sort(key=lambda r: (-r[example_metric], r["instance_id"]))
+    low.sort(key=lambda r: (r[example_metric], r["instance_id"]))
+
+    def ex(rs: list[dict]) -> list[dict]:
         return [
             {
                 "instance_id": r["instance_id"],
                 "system": r["system"],
                 example_metric: r[example_metric],
             }
-            for r in keyed[:examples]
+            for r in rs[:examples]
         ]
 
     disagreements = {
         "metric": example_metric,
-        "high_similarity_unresolved": pick(unresolved, True),
-        "low_similarity_resolved": pick(resolved, False),
+        "threshold": t,
+        "n_high_similarity_unresolved": len(high),
+        "n_low_similarity_resolved": len(low),
+        "high_similarity_unresolved": ex(high),
+        "low_similarity_resolved": ex(low),
+        "n_different_files_resolved": sum(1 for r in resolved if not r["same_files"]),
         "different_files_resolved": [
             {
                 "instance_id": r["instance_id"],

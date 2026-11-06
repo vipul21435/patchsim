@@ -196,3 +196,19 @@ def test_clustered_bootstrap_auc_matches_generic_bootstrap():
         lambda idx: auc([s[i] for i in idx], [y[i] for i in idx]), c, n_boot=200, seed=3
     )
     assert r["auc"] == g["value"] and (r["low"], r["high"]) == (g["low"], g["high"])
+
+
+def test_held_out_accuracy_closed_form():
+    from patchsim.stats import held_out_accuracy
+
+    # cluster a: (0.9, T), (0.1, F); cluster b: (0.8, T), (0.2, F); cluster c: (0.3, T), (0.7, F)
+    s = [0.9, 0.1, 0.8, 0.2, 0.3, 0.7]
+    y = [True, False, True, False, True, False]
+    c = ["a", "a", "b", "b", "c", "c"]
+    # leaving out a: fit on b, c; thresholds 0.8 and 0.3 both give 3 of 4, the first
+    # found (0.8, scanning from the top) is kept; on a it gets both right.
+    # leaving out b: fit on a, c; t = 0.9 (3 of 4); on b: 0.8 < 0.9 is wrong, 0.2 right.
+    # leaving out c: fit on a, b; t = 0.8 (4 of 4); on c 0.3 is wrong, 0.7 right.
+    r = held_out_accuracy(s, y, c)
+    assert r == {"held_out_accuracy": 4 / 6, "n_folds": 3}
+    assert held_out_accuracy(s, y, ["a"] * 6) == {"held_out_accuracy": None, "n_folds": 1}

@@ -39,7 +39,18 @@ def test_analyze_shares_and_examples(demo_dir):
     # every unresolved candidate except acme__widgets-3 touches exactly the gold file
     assert sh["unresolved_touching_exactly_gold_files"] == {"count": 4, "of": 5, "share": 0.8}
     assert res["disagreements"]["different_files_resolved"][0]["instance_id"] == "gamma__cli-2"
-    assert len(res["disagreements"]["high_similarity_unresolved"]) == 2
+    d = res["disagreements"]
+    # best chrF threshold is 1.0 (accuracy 9 of 12): no unresolved candidate reaches it,
+    # and three resolved ones fall below it; examples are capped at 2, lowest first
+    assert d["threshold"] == 1.0 and res["metrics"]["chrf"]["accuracy"] == 0.75
+    assert d["n_high_similarity_unresolved"] == 0 and d["high_similarity_unresolved"] == []
+    assert d["n_low_similarity_resolved"] == 3
+    assert [e["instance_id"] for e in d["low_similarity_resolved"]] == [
+        "gamma__cli-2",
+        "beta__parse-3",
+    ]
+    # every listed example lies on the wrong side of the threshold
+    assert all(e["chrf"] < d["threshold"] for e in d["low_similarity_resolved"])
     for m in res["metrics"].values():
         if m["auc"] is not None:
             assert 0.0 <= m["auc"] <= 1.0

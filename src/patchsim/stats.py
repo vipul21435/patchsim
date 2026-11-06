@@ -176,6 +176,29 @@ def best_threshold(scores: Sequence[float], labels: Sequence[bool]) -> dict[str,
     }
 
 
+def held_out_accuracy(
+    scores: Sequence[float], labels: Sequence[bool], clusters: Sequence[str]
+) -> dict[str, object]:
+    """Accuracy of the best-threshold rule with the threshold chosen out of sample.
+
+    For each cluster in turn, the threshold of :func:`best_threshold` is fitted on
+    the other clusters and applied to this one; the accuracy is the share of all
+    items classified correctly this way (leave one cluster out). It is None with
+    fewer than two clusters.
+    """
+    groups: dict[str, list[int]] = defaultdict(list)
+    for i, c in enumerate(clusters):
+        groups[c].append(i)
+    if len(groups) < 2:
+        return {"held_out_accuracy": None, "n_folds": len(groups)}
+    correct = 0
+    for k, idx in groups.items():
+        rest = [i for c, ix in groups.items() if c != k for i in ix]
+        t = best_threshold([scores[i] for i in rest], [labels[i] for i in rest])["threshold"]
+        correct += sum(1 for i in idx if (scores[i] >= t) == bool(labels[i]))
+    return {"held_out_accuracy": correct / len(scores), "n_folds": len(groups)}
+
+
 def roc_points(scores: Sequence[float], labels: Sequence[bool]) -> list[tuple[float, float]]:
     """(false positive rate, true positive rate) for 'resolved when score >= t' as t
     falls through the distinct scores, from (0, 0) to (1, 1). Tied scores move

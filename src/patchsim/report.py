@@ -40,16 +40,17 @@ def analysis_markdown(res: dict) -> str:
         + ", ".join(f"{k} {v}" for k, v in res.get("ast_modes", {}).items())
         + ".",
         "",
-        f"| metric | n | AUC | {pct}% interval | within-instance AUC | best accuracy "
-        "| threshold | majority |",
-        "|---|---|---|---|---|---|---|---|",
+        f"| metric | n | AUC | {pct}% interval | within-instance AUC "
+        "| best accuracy (in-sample) | threshold | held-out accuracy | majority |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for m, r in res["metrics"].items():
         w = r.get("within_instance")
         out.append(
             f"| {m} | {r['n']} | {_f(r['auc'])} | [{_f(r['low'])}, {_f(r['high'])}] | "
             f"{_iv(w)} | "
-            f"{_f(r['accuracy'])} | {_f(r['threshold'])} | {_f(r['majority_baseline'])} |"
+            f"{_f(r['accuracy'])} | {_f(r['threshold'])} | {_f(r.get('held_out_accuracy'))} | "
+            f"{_f(r['majority_baseline'])} |"
         )
     w0 = next(iter(res["metrics"].values()), {}).get("within_instance")
     if w0:
@@ -59,19 +60,35 @@ def analysis_markdown(res: dict) -> str:
             f"one resolved and one not ({w0['n_instances']} instances, {w0['n_pairs']} pairs "
             f"for the first metric).",
         ]
+    out += [
+        "",
+        "Best accuracy is in-sample: the threshold is chosen and scored on the same "
+        "candidates. Held-out accuracy chooses it on all repositories but one and scores "
+        "the one left out, in turn.",
+    ]
     out += ["", "## File sets", ""]
     for k, v in res["shares"].items():
         out.append(f"- {k.replace('_', ' ')}: {v['count']} of {v['of']} ({_f(v['share'])})")
     d = res["disagreements"]
-    out += ["", f"## Disagreements ({d['metric']})", ""]
+    out += [
+        "",
+        f"## Disagreements ({d['metric']})",
+        "",
+        f"Against the best threshold t = {_f(d.get('threshold'))}: unresolved candidates "
+        f"scoring at least t, and resolved candidates scoring below t.",
+        "",
+    ]
     for key in ("high_similarity_unresolved", "low_similarity_resolved"):
-        out.append(f"{key.replace('_', ' ')}:")
+        n_key = d.get("n_" + key)
+        count = f" {n_key}" if n_key is not None else ""
+        out.append(f"{key.replace('_', ' ')}:{count}")
         for e in d[key]:
             out.append(f"- {e['instance_id']} ({e['system']}): {_f(e[d['metric']])}")
         if not d[key]:
             out.append("- none")
         out.append("")
-    out.append("different files, resolved:")
+    n_diff = d.get("n_different_files_resolved")
+    out.append("different files, resolved:" + (f" {n_diff}" if n_diff is not None else ""))
     for e in d["different_files_resolved"]:
         extra = ", ".join(e["extra_files"]) or "(missing gold files)"
         out.append(f"- {e['instance_id']} ({e['system']}): {extra}")

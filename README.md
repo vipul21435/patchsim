@@ -36,19 +36,21 @@ $ python examples/demo.py /tmp/patchsim-demo
 Empty candidate patches: 0, excluded.
 AST mode per candidate: patch_lines 12.
 
-| metric | n | AUC | 95% interval | within-instance AUC | best accuracy | threshold | majority |
-|---|---|---|---|---|---|---|---|
-| file_precision | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
-| file_recall | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
-| file_f1 | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
-| location_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
-| token_f1 | 12 | 0.786 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.583 |
-| chrf | 12 | 0.743 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.583 |
-| ast_similarity | 12 | 0.657 | [0.625, 0.750] | 0.875 [0.750, 1.000] | 0.750 | 0.857 | 0.583 |
-| function_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.583 |
-| edit_size_balance | 12 | 0.500 | [0.500, 0.500] | 0.500 [0.500, 0.500] | 0.583 | 1.000 | 0.583 |
+| metric | n | AUC | 95% interval | within-instance AUC | best accuracy (in-sample) | threshold | held-out accuracy | majority |
+|---|---|---|---|---|---|---|---|---|
+| file_precision | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| file_recall | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| file_f1 | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| location_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| token_f1 | 12 | 0.786 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.667 | 0.583 |
+| chrf | 12 | 0.743 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.750 | 0.583 |
+| ast_similarity | 12 | 0.657 | [0.625, 0.750] | 0.875 [0.750, 1.000] | 0.750 | 0.857 | 0.667 | 0.583 |
+| function_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| edit_size_balance | 12 | 0.500 | [0.500, 0.500] | 0.500 [0.500, 0.500] | 0.583 | 1.000 | 0.417 | 0.583 |
 
 Within-instance AUC uses only pairs of candidates for the same instance, one resolved and one not (4 instances, 4 pairs for the first metric).
+
+Best accuracy is in-sample: the threshold is chosen and scored on the same candidates. Held-out accuracy chooses it on all repositories but one and scores the one left out, in turn.
 
 ## File sets
 
@@ -58,17 +60,17 @@ Within-instance AUC uses only pairs of candidates for the same instance, one res
 
 ## Disagreements (chrf)
 
-high similarity unresolved:
-- acme__widgets-1 (sys-b): 0.872
-- gamma__cli-1 (sys-a): 0.746
-- acme__widgets-3 (sys-a): 0.634
+Against the best threshold t = 1.000: unresolved candidates scoring at least t, and resolved candidates scoring below t.
 
-low similarity resolved:
+high similarity unresolved: 0
+- none
+
+low similarity resolved: 3
 - gamma__cli-2 (sys-a): 0.528
 - beta__parse-3 (sys-a): 0.569
 - acme__widgets-2 (sys-a): 0.870
 
-different files, resolved:
+different files, resolved: 1
 - gamma__cli-2 (sys-a): cli/compat.py
 ```
 
@@ -213,10 +215,15 @@ Analysis, for each metric, over candidates with a known outcome:
   Its interval resamples repositories and sums Uᵢ and Pᵢ over the instances drawn. A test
   checks it against a brute-force count and builds a case where it differs from the pooled AUC.
 - The best accuracy of a single rule "resolved when score ≥ t" over all t, against the majority
-  baseline max(p, 1 − p).
+  baseline max(p, 1 − p). This is in-sample: t is chosen and scored on the same candidates, so
+  it is optimistic. The held-out accuracy chooses t on every repository but one, applies it to
+  the one left out, and counts correct calls over all repositories in turn.
 - The share of resolved candidates touching files outside the gold patch, the share missing a
-  gold file, the share of unresolved candidates touching exactly the gold files, and example
-  instance ids for each kind of disagreement.
+  gold file, the share of unresolved candidates touching exactly the gold files.
+- Disagreements, against the best threshold t of one metric (`--example-metric`, default
+  chrF): unresolved candidates scoring at least t, and resolved ones scoring below t, with their
+  counts and the most extreme examples by instance id (highest first and lowest first); and the
+  resolved candidates whose file set differs from the gold patch.
 
 Comparison of two systems A and B (`compare`), on the instances both attempted:
 
