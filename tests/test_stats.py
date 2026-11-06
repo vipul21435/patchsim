@@ -212,3 +212,22 @@ def test_held_out_accuracy_closed_form():
     r = held_out_accuracy(s, y, c)
     assert r == {"held_out_accuracy": 4 / 6, "n_folds": 3}
     assert held_out_accuracy(s, y, ["a"] * 6) == {"held_out_accuracy": None, "n_folds": 1}
+
+
+@pytest.mark.parametrize("fn", ["auc", "best_threshold", "roc_points", "held_out_accuracy"])
+def test_nan_scores_are_rejected(fn):
+    import patchsim.stats as st
+
+    args = ([0.1, float("nan"), 0.3, 0.2], [True, False, True, False])
+    if fn == "held_out_accuracy":
+        args = (*args, ["a", "a", "b", "b"])
+    with pytest.raises(ValueError, match="NaN"):
+        getattr(st, fn)(*args)
+
+
+def test_percentile_interval_rejects_a_level_outside_zero_one():
+    from patchsim.stats import percentile_interval
+
+    for level in (95, 0, 1, -0.5):
+        with pytest.raises(ValueError, match="level"):
+            percentile_interval([0.1, 0.2, 0.3], level)

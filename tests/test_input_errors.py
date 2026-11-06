@@ -104,3 +104,27 @@ def test_key_error_fallback(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(cli, "_run", boom)
     assert main(["score", "--candidates", "c", "--gold", "g"]) == 2
     assert capsys.readouterr().err == "patchsim: missing key 'thing'\n"
+
+
+@pytest.mark.parametrize(
+    "flag, value, msg",
+    [
+        ("--level", "95", "between 0 and 1"),
+        ("--level", "0", "between 0 and 1"),
+        ("--n-boot", "-5", "at least 1"),
+        ("--examples", "-1", "at least 0"),
+    ],
+)
+def test_bad_numeric_options_are_one_line(tmp_path, capsys, flag, value, msg):
+    args = [
+        "analyze",
+        "--candidates", _jsonl(tmp_path / "c.jsonl", [CAND]),
+        "--gold", _jsonl(tmp_path / "g.jsonl", [GOLD]),
+        "--outcomes", _jsonl(tmp_path / "o.jsonl", [{"instance_id": "a__b-1", "resolved": True}]),
+        flag, value,
+    ]  # fmt: skip
+    with pytest.raises(SystemExit) as e:
+        main(args)
+    assert e.value.code == 2
+    err = capsys.readouterr().err
+    assert msg in err and "Traceback" not in err

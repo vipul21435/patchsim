@@ -7,6 +7,12 @@ from collections import defaultdict
 from collections.abc import Callable, Sequence
 
 
+def _check_finite(scores: Sequence[float]) -> None:
+    """Raise ValueError on a NaN score, which has no place in a ranking."""
+    if any(s != s for s in scores):
+        raise ValueError("scores contain NaN")
+
+
 def auc(scores: Sequence[float], labels: Sequence[bool]) -> float | None:
     """ROC AUC as the Mann-Whitney probability P(s+ > s-) + 0.5 P(s+ = s-).
 
@@ -16,6 +22,7 @@ def auc(scores: Sequence[float], labels: Sequence[bool]) -> float | None:
     n = len(scores)
     if n != len(labels):
         raise ValueError("scores and labels differ in length")
+    _check_finite(scores)
     order = sorted(range(n), key=lambda i: scores[i])
     ranks = [0.0] * n
     i = 0
@@ -60,7 +67,9 @@ def clustered_bootstrap_auc(
 def percentile_interval(reps: Sequence[float], level: float) -> tuple[float, float]:
     """Equal-tailed percentile interval of sorted replicates: the order statistics
     at k = floor(alpha (n - 1)) and n - 1 - k, with alpha = (1 - level) / 2, so
-    both ends use the same rule."""
+    both ends use the same rule. ``level`` must lie strictly between 0 and 1."""
+    if not 0 < level < 1:
+        raise ValueError(f"level must be between 0 and 1, got {level}")
     k = int((1 - level) / 2 * (len(reps) - 1))
     return reps[k], reps[len(reps) - 1 - k]
 
@@ -149,6 +158,7 @@ def best_threshold(scores: Sequence[float], labels: Sequence[bool]) -> dict[str,
     Candidate thresholds are every distinct score plus +inf (predict nothing
     resolved). The majority baseline is max(p, 1 - p) for the share p resolved.
     """
+    _check_finite(scores)
     n = len(scores)
     if n == 0:
         return {"threshold": None, "accuracy": None, "majority_baseline": None}
@@ -186,6 +196,7 @@ def held_out_accuracy(
     items classified correctly this way (leave one cluster out). It is None with
     fewer than two clusters.
     """
+    _check_finite(scores)
     groups: dict[str, list[int]] = defaultdict(list)
     for i, c in enumerate(clusters):
         groups[c].append(i)
@@ -204,6 +215,7 @@ def roc_points(scores: Sequence[float], labels: Sequence[bool]) -> list[tuple[fl
     falls through the distinct scores, from (0, 0) to (1, 1). Tied scores move
     both rates in one step, so the trapezoid area under the points equals
     :func:`auc`. Empty if either class is absent."""
+    _check_finite(scores)
     n_pos = sum(1 for y in labels if y)
     n_neg = len(labels) - n_pos
     if n_pos == 0 or n_neg == 0:

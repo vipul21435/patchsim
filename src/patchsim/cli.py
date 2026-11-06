@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from . import __version__
@@ -15,7 +16,26 @@ from .report import analysis_markdown, compare_markdown, summary_markdown
 from .score import METRICS, score_all
 
 
+def _level(text: str) -> float:
+    v = float(text)
+    if not 0 < v < 1:
+        raise argparse.ArgumentTypeError(f"must be between 0 and 1 (e.g. 0.95), got {text}")
+    return v
+
+
+def _at_least(lo: int) -> Callable[[str], int]:
+    def parse(text: str) -> int:
+        v = int(text)
+        if v < lo:
+            raise argparse.ArgumentTypeError(f"must be at least {lo}, got {text}")
+        return v
+
+    parse.__name__ = "integer"
+    return parse
+
+
 def build_parser() -> argparse.ArgumentParser:
+    """The argument parser for ``patchsim score``, ``analyze`` and ``compare``."""
     p = argparse.ArgumentParser(
         prog="patchsim",
         description="Similarity of candidate patches to gold patches, and how well it predicts "
@@ -52,10 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
     a = sub.add_parser("analyze", help="how well each metric predicts resolution")
     common(a)
     a.add_argument("--outcomes", required=True, help="JSONL of resolved flags or a results JSON")
-    a.add_argument("--n-boot", type=int, default=2000, help="bootstrap replicates (default 2000)")
+    a.add_argument(
+        "--n-boot", type=_at_least(1), default=2000, help="bootstrap replicates (default 2000)"
+    )
     a.add_argument("--seed", type=int, default=0)
-    a.add_argument("--level", type=float, default=0.95, help="interval level (default 0.95)")
-    a.add_argument("--examples", type=int, default=5, help="disagreement examples per list")
+    a.add_argument("--level", type=_level, default=0.95, help="interval level (default 0.95)")
+    a.add_argument(
+        "--examples", type=_at_least(0), default=5, help="disagreement examples per list"
+    )
     a.add_argument("--example-metric", default="chrf", choices=METRICS)
     a.add_argument(
         "--vs-metric",
@@ -75,9 +99,11 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--a", help="system A (default: first system name in sorted order)")
     c.add_argument("--b", help="system B (default: second system name in sorted order)")
     c.add_argument("--outcomes", help="JSONL of resolved flags or a results JSON")
-    c.add_argument("--n-boot", type=int, default=2000, help="bootstrap replicates (default 2000)")
+    c.add_argument(
+        "--n-boot", type=_at_least(1), default=2000, help="bootstrap replicates (default 2000)"
+    )
     c.add_argument("--seed", type=int, default=0)
-    c.add_argument("--level", type=float, default=0.95, help="interval level (default 0.95)")
+    c.add_argument("--level", type=_level, default=0.95, help="interval level (default 0.95)")
     c.add_argument("--keep-empty", action="store_true", help="keep empty patches in the AUCs")
     c.add_argument("--json", dest="json_out", help="write the full result as JSON")
     c.add_argument("--markdown", help="write the Markdown report to this file")
