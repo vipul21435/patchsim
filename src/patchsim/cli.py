@@ -50,6 +50,9 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--level", type=float, default=0.95, help="interval level (default 0.95)")
     a.add_argument("--examples", type=int, default=5, help="disagreement examples per list")
     a.add_argument("--example-metric", default="chrf", choices=METRICS)
+    a.add_argument(
+        "--keep-empty", action="store_true", help="keep empty candidate patches in the analysis"
+    )
     a.add_argument("--json", dest="json_out", help="write the full result as JSON")
     a.add_argument("--markdown", help="write the Markdown report to this file")
     return p
@@ -92,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         level=args.level,
         examples=args.examples,
         example_metric=args.example_metric,
+        exclude_empty=not args.keep_empty,
     )
     md = analysis_markdown(res)
     if args.json_out:

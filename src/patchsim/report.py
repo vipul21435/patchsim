@@ -34,6 +34,12 @@ def analysis_markdown(res: dict) -> str:
         f"{res['n_repos']} repositories; {res['n_boot']} cluster-bootstrap replicates, "
         f"seed {res['seed']}.",
         "",
+        f"Empty candidate patches: {res.get('n_empty', 0)}, "
+        + ("excluded." if res.get("empty_excluded", True) else "kept."),
+        "AST mode per candidate: "
+        + ", ".join(f"{k} {v}" for k, v in res.get("ast_modes", {}).items())
+        + ".",
+        "",
         f"| metric | n | AUC | {pct}% interval | best accuracy | threshold | majority |",
         "|---|---|---|---|---|---|---|",
     ]

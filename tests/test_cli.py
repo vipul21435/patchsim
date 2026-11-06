@@ -126,3 +126,23 @@ def test_cli_ignore_new_files_flag(demo_dir, tmp_path):
     assert main(["score", *args, "--ignore-new-files", "--out", str(out)]) == 0
     rows = [json.loads(x) for x in out.read_text().splitlines()]
     assert all("dropped_files" in r for r in rows)
+
+
+def test_empty_candidates_excluded_by_default():
+    gold = "--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a = 1\n+a = 2\n"
+    rows = []
+    for i, (patch, ok) in enumerate([(gold, True), ("", False), (gold, False), (gold, True)]):
+        from patchsim.score import score_pair
+
+        rows.append(
+            {"instance_id": f"o__r-{i}", "system": "s", "repo": f"r{i % 2}", "resolved": ok}
+            | score_pair(patch, gold)
+        )
+    res = analyze(rows, n_boot=50)
+    assert res["n_empty"] == 1 and res["n_candidates"] == 3
+    # the three non-empty candidates are identical to gold: no separation
+    assert res["metrics"]["chrf"]["auc"] == 0.5
+    kept = analyze(rows, n_boot=50, exclude_empty=False)
+    assert kept["n_candidates"] == 4
+    # pairs: each positive beats the empty one (1) and ties the other (0.5): 3 / 4
+    assert kept["metrics"]["chrf"]["auc"] == pytest.approx(0.75)

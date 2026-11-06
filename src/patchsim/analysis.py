@@ -29,14 +29,21 @@ def analyze(
     level: float = 0.95,
     examples: int = 5,
     example_metric: str = "chrf",
+    exclude_empty: bool = True,
 ) -> dict[str, object]:
     """Per-metric AUC with a repository-clustered bootstrap interval and best
     threshold accuracy, file-set shares and disagreement examples.
 
     ``rows`` must carry a ``resolved`` field (see :func:`attach_outcomes`). Rows
     where a metric is None (e.g. AST similarity without Python files) are left
-    out of that metric only; ``n`` reports how many were used.
+    out of that metric only; ``n`` reports how many were used. Empty candidate
+    patches are dropped first unless ``exclude_empty`` is False: they can never be
+    resolved and score zero on every metric, so keeping them inflates every AUC by
+    the same easy cases.
     """
+    n_empty = sum(1 for r in rows if r.get("empty_candidate"))
+    if exclude_empty:
+        rows = [r for r in rows if not r.get("empty_candidate")]
     per_metric = {}
     for m in metrics:
         sub = [r for r in rows if r.get(m) is not None]
@@ -87,6 +94,12 @@ def analyze(
     }
     return {
         "n_candidates": len(rows),
+        "n_empty": n_empty,
+        "empty_excluded": exclude_empty,
+        "ast_modes": {
+            str(k): sum(1 for r in rows if r.get("ast_mode") == k)
+            for k in sorted({r.get("ast_mode") for r in rows}, key=str)
+        },
         "n_resolved": len(resolved),
         "n_repos": len({r["repo"] for r in rows}),
         "level": level,
