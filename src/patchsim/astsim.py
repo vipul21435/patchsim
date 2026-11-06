@@ -15,9 +15,11 @@ _SKIP = {"Module", "Load", "Store", "Del"}
 
 
 def _parse(code: str) -> ast.Module:
-    """ast.parse with SyntaxWarning (e.g. invalid escapes in fragments) silenced."""
+    """ast.parse with warnings about invalid escapes in fragments silenced (a
+    SyntaxWarning from Python 3.12, a DeprecationWarning before)."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", SyntaxWarning)
+        warnings.simplefilter("ignore", DeprecationWarning)
         return ast.parse(code)
 
 
