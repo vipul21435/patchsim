@@ -114,10 +114,10 @@ def chrf(cand: Patch, gold: Patch, max_n: int = 6, beta: float = 2.0) -> float:
     twice as much as precision. Two patches with no changed characters score 1.
     Comment lines are compared only when neither patch changes anything else.
 
-    This is the formula of the paper. It equals sacrebleu's
-    ``CHRF(char_order=6, word_order=0, beta=2)`` when every line is at least six
-    characters long; for shorter lines the missing orders count as zero here,
-    where sacrebleu's default drops them (it is close to ``eps_smoothing=True``).
+    This is the formula of the paper. On one changed line per side it equals
+    sacrebleu's ``CHRF(char_order=6, word_order=0, beta=2)`` when both lines have
+    at least six characters; for a shorter line the orders it lacks count as zero
+    here, where sacrebleu's default drops them.
     """
     cl, gl = _lines_pair(cand, gold)
     ps, rs = [], []
