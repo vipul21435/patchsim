@@ -56,3 +56,13 @@ def test_random_split_does_not_change_any_metric():
         a, b = score_pair(split, whole), score_pair(whole, whole)
         for k in ("location_jaccard", "token_f1", "chrf", "ast_similarity", "edit_size_balance"):
             assert a[k] == b[k], k
+
+
+def test_sources_path_outside_the_instance_directory_is_not_read(tmp_path):
+    base = tmp_path / "srcs" / "i"
+    base.mkdir(parents=True)
+    (tmp_path / "outside.py").write_text("a = 1\n")
+    d = "--- a/../../outside.py\n+++ b/../../outside.py\n@@ -1 +1 @@\n-a = 1\n+a = 2\n"
+    assert post_patch_sources(parse_diff(d), base) is None
+    d = f"--- a/{tmp_path}/outside.py\n+++ b/{tmp_path}/outside.py\n@@ -1 +1 @@\n-a = 1\n+a = 2\n"
+    assert post_patch_sources(parse_diff(d), base) is None

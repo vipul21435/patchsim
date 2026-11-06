@@ -24,15 +24,25 @@ METRICS = (
 )
 
 
+def _inside(p: Path, root: Path) -> bool:
+    try:
+        p.resolve().relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def post_patch_sources(patch: Patch, base_dir: str | Path) -> dict[str, AppliedFile] | None:
     """Every changed Python file of ``patch`` applied to its pre-patch file under ``base_dir``.
 
     ``base_dir/<path>`` holds the file before the patch; a file the patch creates
     starts empty and a file it deletes ends empty. Returns None when a pre-patch
-    file is missing or a hunk does not apply, so the caller falls back to the
-    patch-lines AST mode.
+    file is missing, lies outside ``base_dir`` (a path with ``..`` or an absolute
+    path in an untrusted diff) or a hunk does not apply, so the caller falls back
+    to the patch-lines AST mode.
     """
     base = Path(base_dir)
+    root = base.resolve()
     out: dict[str, AppliedFile] = {}
     for f in patch.files:
         if not f.path.endswith(".py"):
@@ -41,7 +51,7 @@ def post_patch_sources(patch: Patch, base_dir: str | Path) -> dict[str, AppliedF
             src = ""
         else:
             p = base / f.old_path
-            if not p.is_file():
+            if not _inside(p, root) or not p.is_file():
                 return None
             src = p.read_text(encoding="utf-8", errors="replace")
         applied = apply_file_patch_lines(src, f)
