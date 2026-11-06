@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 
 def auc(scores: Sequence[float], labels: Sequence[bool]) -> float | None:
@@ -80,6 +80,49 @@ def clustered_bootstrap_auc(
         "se": se,
         "n_boot": len(reps),
         "n_dropped": dropped,
+        "n_clusters": len(keys),
+    }
+
+
+def cluster_bootstrap(
+    stat: Callable[[list[int]], float | None],
+    clusters: Sequence[str],
+    n_boot: int = 2000,
+    level: float = 0.95,
+    seed: int = 0,
+) -> dict[str, object]:
+    """Percentile interval for any statistic of a list of item indices.
+
+    ``stat`` maps a list of indices (with repeats) to a number, or None when the
+    statistic is undefined on that draw; such draws are dropped and counted.
+    Clusters are resampled whole, with replacement, as in
+    :func:`clustered_bootstrap_auc`.
+    """
+    groups: dict[str, list[int]] = defaultdict(list)
+    for i, c in enumerate(clusters):
+        groups[c].append(i)
+    keys = sorted(groups)
+    rng = random.Random(seed)
+    reps: list[float] = []
+    dropped = 0
+    for _ in range(n_boot):
+        v = stat([i for k in rng.choices(keys, k=len(keys)) for i in groups[k]])
+        if v is None:
+            dropped += 1
+        else:
+            reps.append(v)
+    point = stat(list(range(len(clusters))))
+    out: dict[str, object] = {"value": point, "n_boot": len(reps), "n_dropped": dropped}
+    if not reps:
+        return {**out, "low": None, "high": None, "se": None}
+    reps.sort()
+    alpha = (1 - level) / 2
+    mean = sum(reps) / len(reps)
+    return {
+        **out,
+        "low": reps[int(alpha * (len(reps) - 1))],
+        "high": reps[int(round((1 - alpha) * (len(reps) - 1)))],
+        "se": (sum((r - mean) ** 2 for r in reps) / max(len(reps) - 1, 1)) ** 0.5,
         "n_clusters": len(keys),
     }
 

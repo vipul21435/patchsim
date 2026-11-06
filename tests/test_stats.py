@@ -89,3 +89,31 @@ def test_clustered_wider_than_iid_under_cluster_effect():
 def test_bootstrap_single_class():
     r = clustered_bootstrap_auc([0.1, 0.2], [True, True], ["a", "b"], n_boot=20)
     assert r["auc"] is None and r["n_boot"] == 0 and r["n_dropped"] == 20
+
+
+def test_cluster_bootstrap_mean_covers_truth():
+    from patchsim.stats import cluster_bootstrap
+
+    rng = random.Random(11)
+    hits = 0
+    sims = 120
+    for t in range(sims):
+        vals, clus = [], []
+        for j in range(25):
+            u = rng.gauss(0, 1)
+            for _ in range(4):
+                vals.append(u + rng.gauss(0, 1))
+                clus.append(f"r{j}")
+        r = cluster_bootstrap(
+            lambda idx, v=vals: sum(v[i] for i in idx) / len(idx), clus, n_boot=200, seed=t
+        )
+        hits += r["low"] <= 0.0 <= r["high"]
+    # nominal 0.95; with 25 clusters the percentile interval runs a little short
+    assert 0.85 <= hits / sims <= 1.0
+
+
+def test_cluster_bootstrap_undefined_draws():
+    from patchsim.stats import cluster_bootstrap
+
+    r = cluster_bootstrap(lambda idx: None, ["a", "b"], n_boot=10)
+    assert r["value"] is None and r["low"] is None and r["n_dropped"] == 10
