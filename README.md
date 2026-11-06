@@ -1,18 +1,24 @@
 # patchsim
 
-Measure how far textual similarity to the gold patch goes as a proxy for the correctness of a candidate patch.
+[![ci](https://github.com/vipul21435/patchsim/actions/workflows/ci.yml/badge.svg)](https://github.com/vipul21435/patchsim/actions/workflows/ci.yml)
+
+patchsim, by Vipul Raj Jha, scores candidate code patches against the reference (gold) patch at
+the file, line, token, character n-gram and Python AST level, and measures how well each score
+predicts whether the candidate passes the benchmark tests.
+
+On 2,871 patches from six public SWE-bench Verified submissions, character n-gram F-score (chrF)
+separates resolved from unresolved patches best (ROC AUC 0.805, 95 % repository-clustered interval
+0.775 to 0.824). The best single cut-off is right for 75.6 % of patches with the threshold chosen on
+other repositories, against 57.2 % for always predicting unresolved, so similarity cannot replace
+running tests. Details, commands and data licences are under [Results](#results-on-real-public-data).
 
 ## Why this is hard
 
-A bug usually has more than one correct fix. A candidate can touch another file, guard the
-input at the caller instead of the callee, or rewrite a loop the gold patch only adjusted, and
-still pass the tests; another candidate can differ from the gold patch by one character and fail.
-Benchmarks such as SWE-bench (Jimenez et al., "SWE-bench: Can Language Models Resolve Real-World
-GitHub Issues?", ICLR 2024, arXiv 2310.06770) therefore judge a patch by running tests, and
-similarity to the reference is at best a proxy. How good a proxy it is depends on the metric
-(files, lines, tokens, characters, syntax), and the answer needs an uncertainty interval that
-respects the fact that instances from the same repository are not independent. patchsim computes
-the metrics and measures how well each one separates resolved from unresolved candidates.
+A bug usually has more than one correct fix: a candidate can touch another file or guard the input
+at the caller instead of the callee and still pass, while one that differs from the gold patch by a
+character can fail. Benchmarks such as SWE-bench (Jimenez et al., ICLR 2024, arXiv 2310.06770)
+therefore run tests, and how good similarity is as a proxy depends on the metric and needs an
+interval that respects the correlation of instances from the same repository.
 
 ## Install
 
@@ -28,84 +34,15 @@ statements covered, every module at 95 % or more).
 
 ## Quickstart
 
-`examples/demo.py` writes a toy benchmark (8 gold patches over 3 made-up repositories, 12
-candidates from two made-up systems, hand-set outcomes) and runs `patchsim analyze` on it:
+The examples are in the repository, not in the installed package, so start from a clone:
 
 ```
-$ python examples/demo.py /tmp/patchsim-demo
-# patchsim analysis
-
-12 candidates, 7 resolved, 3 repositories; 500 cluster-bootstrap replicates, seed 0.
-
-Empty candidate patches: 0, excluded.
-AST mode per candidate: patch_lines 12.
-
-| metric | n | AUC | 95% interval | within-instance AUC | best accuracy (in-sample) | threshold | held-out accuracy | majority |
-|---|---|---|---|---|---|---|---|---|
-| file_precision | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
-| file_recall | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
-| file_f1 | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
-| location_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
-| token_f1 | 12 | 0.786 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.667 | 0.583 |
-| chrf | 12 | 0.743 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.750 | 0.583 |
-| ast_similarity | 12 | 0.657 | [0.625, 0.750] | 0.875 [0.750, 1.000] | 0.750 | 0.857 | 0.667 | 0.583 |
-| function_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
-| edit_size_balance | 12 | 0.500 | [0.500, 0.500] | 0.500 [0.500, 0.500] | 0.583 | 1.000 | 0.417 | 0.583 |
-
-Within-instance AUC uses only pairs of candidates for the same instance, one resolved and one not (4 instances, 4 pairs for the first metric).
-
-Best accuracy is in-sample: the threshold is chosen and scored on the same candidates. Held-out accuracy chooses it on all repositories but one and scores the one left out, in turn.
-
-## File sets
-
-- resolved touching files outside gold: 1 of 7 (0.143)
-- resolved missing gold files: 1 of 7 (0.143)
-- unresolved touching exactly gold files: 4 of 5 (0.800)
-
-## Disagreements (chrf)
-
-Against the best threshold t = 1.000: unresolved candidates scoring at least t, and resolved candidates scoring below t.
-
-high similarity unresolved: 0
-- none
-
-low similarity resolved: 3
-- gamma__cli-2 (sys-a): 0.528
-- beta__parse-3 (sys-a): 0.569
-- acme__widgets-2 (sys-a): 0.870
-
-different files, resolved: 1
-- gamma__cli-2 (sys-a): cli/compat.py
+git clone https://github.com/vipul21435/patchsim && cd patchsim
+pip install .
 ```
-
-These numbers describe the toy data only. The three subcommands on your own files:
-
-```
-patchsim score   --candidates preds.jsonl --gold gold.jsonl --out rows.jsonl
-patchsim analyze --candidates preds.jsonl --gold gold.jsonl --outcomes results.json \
-                 --n-boot 2000 --json analysis.json --markdown analysis.md
-patchsim compare --candidates preds.jsonl --gold gold.jsonl --outcomes results.json \
-                 --a system-one --b system-two --markdown compare.md
-```
-
-Options shared by all three:
-
-- `--ignore-new-files` sets aside files a candidate creates that the gold patch does not touch
-  (reproduction scripts and scratch tests that agents often leave in their final diff); the
-  dropped paths are listed per candidate.
-- `--sources DIR` gives the pre-patch files of instance `i` at `DIR/i/<path>`; both patches
-  are applied to them and the AST metric uses the post-patch source (see below).
-- `--include-system NAME` (repeatable) keeps only those systems.
-
-`analyze --vs-metric NAME` adds the paired difference between the AUC of that metric and the
-AUC of every other one, each with its interval.
-
-`analyze` leaves empty candidate patches out unless `--keep-empty` is given: an empty patch is
-never resolved and scores zero on every metric, so keeping it lifts every AUC with the same
-easy cases.
 
 From Python, `patchsim.score.score_pair(candidate_diff, gold_diff)` returns every metric for
-one pair; `examples/pair.py` scores a hand-made candidate that adds the same guard as the gold
+one pair. `examples/pair.py` scores a hand-made candidate that adds the same guard as the gold
 patch in other words and leaves a reproduction script behind:
 
 ```
@@ -139,6 +76,64 @@ new files set aside:
   dropped_files: ['reproduce.py']
 ```
 
+`examples/demo.py` writes a toy benchmark (8 gold patches over 3 made-up repositories, 12
+candidates from two made-up systems, hand-set outcomes) and runs `patchsim analyze` on it. The
+start of its report (the rest lists file-set shares and disagreement examples):
+
+```
+$ python examples/demo.py /tmp/patchsim-demo
+# patchsim analysis
+
+12 candidates, 7 resolved, 3 repositories; 500 cluster-bootstrap replicates, seed 0.
+
+Empty candidate patches: 0, excluded.
+AST mode per candidate: patch_lines 12.
+
+| metric | n | AUC | 95% interval | within-instance AUC | best accuracy (in-sample) | threshold | held-out accuracy | majority |
+|---|---|---|---|---|---|---|---|---|
+| file_precision | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| file_recall | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| file_f1 | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| location_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| token_f1 | 12 | 0.786 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.667 | 0.583 |
+| chrf | 12 | 0.743 | [0.500, 1.000] | 0.750 [0.500, 1.000] | 0.750 | 1.000 | 0.750 | 0.583 |
+| ast_similarity | 12 | 0.657 | [0.625, 0.750] | 0.875 [0.750, 1.000] | 0.750 | 0.857 | 0.667 | 0.583 |
+| function_jaccard | 12 | 0.529 | [0.250, 0.750] | 0.375 [0.250, 0.500] | 0.583 | 1.000 | 0.333 | 0.583 |
+| edit_size_balance | 12 | 0.500 | [0.500, 0.500] | 0.500 [0.500, 0.500] | 0.583 | 1.000 | 0.417 | 0.583 |
+
+Within-instance AUC uses only pairs of candidates for the same instance, one resolved and one not (4 instances, 4 pairs for the first metric).
+
+Best accuracy is in-sample: the threshold is chosen and scored on the same candidates. Held-out accuracy chooses it on all repositories but one and scores the one left out, in turn.
+
+...
+```
+
+These numbers describe the toy data only. The three subcommands on your own files:
+
+```
+patchsim score   --candidates preds.jsonl --gold gold.jsonl --out rows.jsonl
+patchsim analyze --candidates preds.jsonl --gold gold.jsonl --outcomes outcomes.jsonl \
+                 --n-boot 2000 --json analysis.json --markdown analysis.md
+patchsim compare --candidates preds.jsonl --gold gold.jsonl --outcomes outcomes.jsonl \
+                 --a system-one --b system-two --markdown compare.md
+```
+
+Options shared by all three:
+
+- `--ignore-new-files` sets aside files a candidate creates that the gold patch does not touch
+  (reproduction scripts and scratch tests that agents often leave in their final diff); the
+  dropped paths are listed per candidate.
+- `--sources DIR` gives the pre-patch files of instance `i` at `DIR/i/<path>`; both patches
+  are applied to them and the AST metric uses the post-patch source (see below).
+- `--include-system NAME` (repeatable) keeps only those systems.
+
+`analyze --vs-metric NAME` adds the paired difference between the AUC of that metric and the
+AUC of every other one, each with its interval.
+
+`analyze` leaves empty candidate patches out unless `--keep-empty` is given: an empty patch is
+never resolved and scores zero on every metric, so keeping it lifts every AUC with the same
+easy cases.
+
 Inputs:
 
 - candidates: JSONL, one object per line with `instance_id`, a system name (`model`, `system`
@@ -146,10 +141,14 @@ Inputs:
 - gold: JSONL or a JSON list with `instance_id` and `patch` (the SWE-bench dataset layout);
 - outcomes: JSONL with `instance_id`, `resolved` (`true`/`false`, or `0`/`1`; strings are
   rejected) and optionally the system name, or a JSON object with a `resolved` list of
-  instance ids, in which case every other scored instance counts as unresolved.
+  instance ids, in which case every other scored instance counts as unresolved. Outcomes
+  without a system name apply to every system, so they are refused when the candidates come
+  from more than one system (keep one with `--include-system`, or name the system per row).
 
-A missing file, a malformed line or a row without a required key stops the command with a
-one-line message naming the file and line, and exit status 2.
+A missing file or directory, a file that is not UTF-8, a malformed line, a row without a
+required key, a diff that is not a string, a second row for the same (system, instance) or
+the same gold instance, and a `--level` outside (0, 1) all stop the command with a one-line
+message naming the file and line or the option, and exit status 2.
 
 ## How it works
 
@@ -157,6 +156,8 @@ Diffs are parsed into files and hunks. Original line `n` is position `2n`; the g
 original line `k`, where a pure insertion lands, is position `2k + 1`. A run of changed lines
 between two context lines touches the positions of the lines it removes, or the one gap if it
 removes nothing. This keeps insertions comparable with edits without inventing line numbers.
+A diff that names the same file in several sections (model-written diffs sometimes do) is read
+as one file patch with the hunks of every section, in order of original line.
 
 Per candidate C against gold G:
 
@@ -173,8 +174,13 @@ Per candidate C against gold G:
 Details and the choices behind them:
 
 - Tokens are identifiers, numbers and single non-space characters of the added and removed
-  lines; blank and whole-line `#` comment lines are dropped, and each token is tagged with its
-  side, so adding `x` never matches removing `x`.
+  lines; blank lines are dropped, and each token is tagged with its side, so adding `x` never
+  matches removing `x`. Whole-line `#` comments are dropped in file types where `#` starts a
+  comment (Python, shell, YAML, TOML, INI-style configuration, Ruby, Perl, R, Makefiles and a
+  few more; `HASH_COMMENT_SUFFIXES` in `textsim.py`), and kept elsewhere, so C preprocessor
+  lines and Markdown headings count. When dropping comments leaves both patches with nothing,
+  the comments are compared instead, so two patches that change different comments do not
+  both score 1. The same lines feed chrF.
 - chrF follows the character n-gram F-score of Popović ("chrF: character n-gram F-score for
   automatic MT evaluation", Tenth Workshop on Statistical Machine Translation, 2015,
   https://aclanthology.org/W15-3049/): precision and recall are averaged arithmetically over
@@ -182,7 +188,11 @@ Details and the choices behind them:
   β = 1 and β = 3; patchsim uses β = 2 (a parameter of `chrf()`), between the two. Here n-grams
   are taken within each changed line with whitespace removed and tagged by side; orders where
   both sides are empty are skipped. Character n-grams give partial credit to `rstrip` against
-  `strip`, which token F1 does not.
+  `strip`, which token F1 does not. On one changed line per side this equals sacrebleu's
+  `CHRF(char_order=6, word_order=0, beta=2)` when both lines have at least six characters
+  (sacrebleu 2.6, 283 random pairs, largest difference 0). For a shorter line the orders it
+  lacks count as zero here, as in the paper's formula, where sacrebleu's default drops them:
+  `ab` against `abcdefgh` scores 0.078 here and 0.234 in sacrebleu.
 - AST similarity is a simplified relative of the syntax-match component of CodeBLEU (Ren et al.,
   "CodeBLEU: a Method for Automatic Evaluation of Code Synthesis", arXiv 2009.10297): a multiset
   of node types rather than subtrees, and no data-flow term. Without repository content it works
@@ -202,7 +212,9 @@ Details and the choices behind them:
   many candidates used each mode. Expression-context nodes (`Load`, `Store`, `Del`) are
   dropped. The metric is None when neither patch touches a `.py` file.
 - Changed functions are read from the patch: the nearest `def` line above each changed line
-  inside the hunk, or the function named in the hunk header.
+  inside the hunk, or the function named in the hunk header. A later line indented no deeper
+  than that `def` (column 0 for a name from the header) ends the function, and changed lines
+  outside any function are not counted.
 
 Analysis, for each metric, over candidates with a known outcome:
 
@@ -396,8 +408,12 @@ What the numbers say:
   mislabelled ones); a data-flow term or subtree matching in the AST metric (CodeBLEU has
   both); several gold patches per instance; non-Python AST metrics (other languages get the
   file, location, token and chrF metrics only); fuzzy hunk application.
-- Function detection from the patch is a heuristic: nested functions, methods with the same name
-  in different classes, and changes outside any visible `def` are not resolved.
+- Function detection from the patch is a heuristic: nested functions and methods with the same
+  name in different classes are not resolved, and a multi-line string at column 0 inside a
+  function ends it early.
+- The AST metric compares counts of node types and ignores identifiers and position: the same
+  kind of edit made in another function (`return 1` to `return 10` in `f` against `return 2`
+  to `return 20` in `g`) scores 1.0. Read it next to location Jaccard and function Jaccard.
 - Location overlap compares positions in the original file only; two patches that insert the
   same code one line apart share nothing.
 - Similarity is measured against one gold patch; an instance with several valid fixes penalises
@@ -436,8 +452,10 @@ Sibling tools by the same author:
 - [evalstats](https://github.com/vipul21435/evalstats): intervals and paired tests for evaluation results.
 - [patchmin](https://github.com/vipul21435/patchmin): the minimal subset of a patch that still fixes the tests.
 - [issuelint](https://github.com/vipul21435/issuelint): checks issue text for leakage of the solution.
-- [graderguard](https://github.com/vipul21435/graderguard): audits graders for reward hacking and flakiness.
 - [reporewind](https://github.com/vipul21435/reporewind): resolves Python fix commits into source and test patches.
+- [trajlens](https://github.com/vipul21435/trajlens): reads coding-agent trajectories, the runs that produce candidate patches like these.
+- [contamscan](https://github.com/vipul21435/contamscan): measures contamination of a training corpus with benchmarks such as SWE-bench.
+- [awesome-coding-agent-evals](https://github.com/vipul21435/awesome-coding-agent-evals): a list of benchmarks, harnesses and datasets for evaluating coding agents.
 
 ## Licence
 
