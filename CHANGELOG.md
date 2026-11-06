@@ -22,3 +22,14 @@
   `--sources` and `--include-system` options.
 - `examples/demo.py` with a toy benchmark; `scripts/` to fetch SWE-bench Verified data and six
   public submissions and to reproduce the README results and chart.
+- Sections of one diff that name the same file are merged into one file patch, so location
+  overlap and post-patch AST keep every hunk.
+- Whole-line `#` comments are dropped only in file types where `#` starts a comment, and are
+  compared when nothing else changed.
+- Parser: `--` and `++` lines inside zero-context hunks stay in the hunk; `diff --git` paths
+  may contain spaces. A hunk stated past the end of the file is searched from the end.
+- `--sources` reads nothing outside the instance directory. Changed functions end at the
+  first line outside the `def` body.
+- Input checks: NaN scores, `--level` outside (0, 1), negative `--n-boot` or `--examples`,
+  duplicate rows, non-string diffs, non-UTF-8 files, directories given as files, and outcomes
+  without system names for more than one system all stop with a one-line message.
