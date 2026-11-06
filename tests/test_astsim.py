@@ -77,3 +77,14 @@ def test_function_overlap():
 def test_added_new_lines():
     d = parse_diff("--- a/m.py\n+++ b/m.py\n@@ -3,2 +3,3 @@\n keep\n+new\n-old\n+new2\n")
     assert d.files[0].added_new_lines() == [4, 5]
+
+
+def test_invalid_escape_in_fragment_emits_no_warning():
+    import warnings
+
+    from patchsim.astsim import node_types_from_lines
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        c = node_types_from_lines(['x = re.compile("\\d+")'])
+    assert c["Assign"] == 1

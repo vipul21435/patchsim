@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import textwrap
+import warnings
 from collections import Counter
 
 from .diff import FilePatch, Patch
@@ -11,6 +12,13 @@ from .textsim import multiset_f1
 
 # Expression-context and wrapper nodes carry no information about the edit.
 _SKIP = {"Module", "Load", "Store", "Del"}
+
+
+def _parse(code: str) -> ast.Module:
+    """ast.parse with SyntaxWarning (e.g. invalid escapes in fragments) silenced."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SyntaxWarning)
+        return ast.parse(code)
 
 
 def _is_python(path: str) -> bool:
@@ -33,7 +41,7 @@ def _parse_line(s: str) -> ast.AST | None:
             candidates.append("if " + s[5:] + " pass")
     for c in candidates:
         try:
-            return ast.parse(c)
+            return _parse(c)
         except SyntaxError:
             continue
     return None
@@ -52,7 +60,7 @@ def node_types_from_lines(lines: list[str], tag: str = "") -> Counter:
     if not code:
         return out
     try:
-        _count(ast.parse(textwrap.dedent("\n".join(code))), out, tag)
+        _count(_parse(textwrap.dedent("\n".join(code))), out, tag)
         return out
     except SyntaxError:
         pass
@@ -88,7 +96,7 @@ def node_types_from_source(source: str, changed_lines: list[int]) -> Counter | N
     """Multiset of node types of the functions (or top-level statements) of
     ``source`` that contain any of ``changed_lines``. None if the source does not parse."""
     try:
-        tree = ast.parse(source)
+        tree = _parse(source)
     except SyntaxError:
         return None
     out: Counter = Counter()
