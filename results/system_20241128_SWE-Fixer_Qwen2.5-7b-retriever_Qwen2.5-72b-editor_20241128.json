@@ -1,0 +1,340 @@
+{
+  "ast_modes": {
+    "patch_lines": 500
+  },
+  "disagreements": {
+    "different_files_resolved": [
+      {
+        "extra_files": [
+          "django/db/models/base.py"
+        ],
+        "instance_id": "django__django-11179",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "extra_files": [],
+        "instance_id": "django__django-12155",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "extra_files": [
+          "django/contrib/messages/storage/base.py"
+        ],
+        "instance_id": "django__django-15127",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "extra_files": [
+          "django/db/backends/sqlite3/schema.py"
+        ],
+        "instance_id": "django__django-15561",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "extra_files": [
+          "django/db/models/sql/compiler.py"
+        ],
+        "instance_id": "django__django-16938",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      }
+    ],
+    "high_similarity_unresolved": [
+      {
+        "chrf": 0.9713122710955424,
+        "instance_id": "django__django-15315",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "chrf": 0.9082704782173118,
+        "instance_id": "django__django-16662",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "chrf": 0.9019391744620775,
+        "instance_id": "django__django-13033",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "chrf": 0.886676755849018,
+        "instance_id": "django__django-13023",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "chrf": 0.8633198054168265,
+        "instance_id": "django__django-16642",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      }
+    ],
+    "low_similarity_resolved": [
+      {
+        "chrf": 0.0,
+        "instance_id": "django__django-12209",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "chrf": 0.04554886577875084,
+        "instance_id": "django__django-16255",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "chrf": 0.07473110239301724,
+        "instance_id": "sympy__sympy-13877",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "chrf": 0.0855636768137957,
+        "instance_id": "sympy__sympy-22914",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      },
+      {
+        "chrf": 0.08561742578110862,
+        "instance_id": "matplotlib__matplotlib-24970",
+        "system": "20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128"
+      }
+    ],
+    "metric": "chrf"
+  },
+  "empty_excluded": true,
+  "level": 0.95,
+  "metrics": {
+    "ast_similarity": {
+      "accuracy": 0.808,
+      "auc": 0.7874722480502476,
+      "high": 0.8255947712418301,
+      "low": 0.7038097419453352,
+      "majority_baseline": 0.698,
+      "n": 500,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 151,
+      "se": 0.02902279278325844,
+      "threshold": 0.9122807017543859,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "chrf": {
+      "accuracy": 0.82,
+      "auc": 0.8371980492988482,
+      "high": 0.8878481266279302,
+      "low": 0.7967221781654771,
+      "majority_baseline": 0.698,
+      "n": 500,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 151,
+      "se": 0.02060000376745162,
+      "threshold": 0.865803813330371,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "edit_size_balance": {
+      "accuracy": 0.698,
+      "auc": 0.6164633104992504,
+      "high": 0.6803472770323599,
+      "low": 0.5679278527379793,
+      "majority_baseline": 0.698,
+      "n": 500,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 151,
+      "se": 0.025920410804356964,
+      "threshold": Infinity,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "file_f1": {
+      "accuracy": 0.698,
+      "auc": 0.7231067003168941,
+      "high": 0.7920392953929539,
+      "low": 0.6911553344389165,
+      "majority_baseline": 0.698,
+      "n": 500,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 151,
+      "se": 0.025680846420534417,
+      "threshold": Infinity,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "file_precision": {
+      "accuracy": 0.698,
+      "auc": 0.6637127839237936,
+      "high": 0.7142857142857143,
+      "low": 0.6349606580829756,
+      "majority_baseline": 0.698,
+      "n": 500,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 151,
+      "se": 0.021178072832728465,
+      "threshold": Infinity,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "file_recall": {
+      "accuracy": 0.698,
+      "auc": 0.7254691739881212,
+      "high": 0.7965447154471544,
+      "low": 0.6954219869199626,
+      "majority_baseline": 0.698,
+      "n": 500,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 151,
+      "se": 0.025768174711814622,
+      "threshold": Infinity,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "function_jaccard": {
+      "accuracy": 0.7137096774193549,
+      "auc": 0.6330057803468208,
+      "high": 0.7113298513459221,
+      "low": 0.597286463151403,
+      "majority_baseline": 0.6975806451612904,
+      "n": 496,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 150,
+      "se": 0.03110076932469092,
+      "threshold": 0.5,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "location_jaccard": {
+      "accuracy": 0.782,
+      "auc": 0.7466175828763354,
+      "high": 0.8126299266047261,
+      "low": 0.6706445569971553,
+      "majority_baseline": 0.698,
+      "n": 500,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 151,
+      "se": 0.03245823636232889,
+      "threshold": 0.2857142857142857,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "token_f1": {
+      "accuracy": 0.806,
+      "auc": 0.8197593882236854,
+      "high": 0.8732111202386614,
+      "low": 0.7623816670514892,
+      "majority_baseline": 0.698,
+      "n": 500,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 151,
+      "se": 0.02393253340335484,
+      "threshold": 0.875,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    }
+  },
+  "n_boot": 2000,
+  "n_candidates": 500,
+  "n_empty": 0,
+  "n_repos": 12,
+  "n_resolved": 151,
+  "seed": 0,
+  "shares": {
+    "resolved_missing_gold_files": {
+      "count": 7,
+      "of": 151,
+      "share": 0.046357615894039736
+    },
+    "resolved_touching_files_outside_gold": {
+      "count": 5,
+      "of": 151,
+      "share": 0.033112582781456956
+    },
+    "unresolved_touching_exactly_gold_files": {
+      "count": 177,
+      "of": 349,
+      "share": 0.5071633237822349
+    }
+  }
+}

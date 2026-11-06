@@ -1,0 +1,338 @@
+{
+  "ast_modes": {
+    "patch_lines": 490
+  },
+  "disagreements": {
+    "different_files_resolved": [
+      {
+        "extra_files": [
+          "django/template/base.py"
+        ],
+        "instance_id": "django__django-11119",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "extra_files": [
+          "django/contrib/contenttypes/fields.py"
+        ],
+        "instance_id": "django__django-11211",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "extra_files": [],
+        "instance_id": "django__django-11532",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "extra_files": [],
+        "instance_id": "django__django-12155",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "extra_files": [
+          "django/db/models/fields/__init__.py"
+        ],
+        "instance_id": "django__django-12663",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      }
+    ],
+    "high_similarity_unresolved": [
+      {
+        "chrf": 0.9543340295161932,
+        "instance_id": "django__django-14559",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "chrf": 0.8461925775731326,
+        "instance_id": "pydata__xarray-2905",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "chrf": 0.8228332735711243,
+        "instance_id": "django__django-11790",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "chrf": 0.818020725385176,
+        "instance_id": "sphinx-doc__sphinx-8638",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "chrf": 0.798353612315327,
+        "instance_id": "django__django-13012",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      }
+    ],
+    "low_similarity_resolved": [
+      {
+        "chrf": 0.014909619038274199,
+        "instance_id": "sympy__sympy-22456",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "chrf": 0.033665499798941165,
+        "instance_id": "pytest-dev__pytest-7432",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "chrf": 0.04554886577875084,
+        "instance_id": "django__django-16255",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "chrf": 0.05283879239720286,
+        "instance_id": "django__django-15561",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      },
+      {
+        "chrf": 0.0675601880329822,
+        "instance_id": "psf__requests-5414",
+        "system": "20241029_OpenHands-CodeAct-2.1-sonnet-20241022"
+      }
+    ],
+    "metric": "chrf"
+  },
+  "empty_excluded": true,
+  "level": 0.95,
+  "metrics": {
+    "ast_similarity": {
+      "accuracy": 0.6918367346938775,
+      "auc": 0.7344737945492662,
+      "high": 0.7542847061195685,
+      "low": 0.678030303030303,
+      "majority_baseline": 0.5408163265306123,
+      "n": 490,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 265,
+      "se": 0.019013248901485157,
+      "threshold": 0.5769230769230769,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "chrf": {
+      "accuracy": 0.7387755102040816,
+      "auc": 0.7878071278825995,
+      "high": 0.8125,
+      "low": 0.7535121328224776,
+      "majority_baseline": 0.5408163265306123,
+      "n": 490,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 265,
+      "se": 0.013538965104970446,
+      "threshold": 0.43108754913710323,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "edit_size_balance": {
+      "accuracy": 0.6387755102040816,
+      "auc": 0.6693501048218029,
+      "high": 0.6864565842549167,
+      "low": 0.6055147058823529,
+      "majority_baseline": 0.5408163265306123,
+      "n": 490,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 265,
+      "se": 0.021231554456042717,
+      "threshold": 0.48717948717948717,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "file_f1": {
+      "accuracy": 0.7061224489795919,
+      "auc": 0.6987840670859539,
+      "high": 0.7404582037229053,
+      "low": 0.6566659272404614,
+      "majority_baseline": 0.5408163265306123,
+      "n": 490,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 265,
+      "se": 0.019740726511039985,
+      "threshold": 1.0,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "file_precision": {
+      "accuracy": 0.6551020408163265,
+      "auc": 0.6371907756813417,
+      "high": 0.6743859649122808,
+      "low": 0.6098571428571429,
+      "majority_baseline": 0.5408163265306123,
+      "n": 490,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 265,
+      "se": 0.016092172288311845,
+      "threshold": 1.0,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "file_recall": {
+      "accuracy": 0.6755102040816326,
+      "auc": 0.6502054507337526,
+      "high": 0.6928742720109626,
+      "low": 0.6043754902815306,
+      "majority_baseline": 0.5408163265306123,
+      "n": 490,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 265,
+      "se": 0.020966593441949684,
+      "threshold": 0.6666666666666666,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "function_jaccard": {
+      "accuracy": 0.5893223819301848,
+      "auc": 0.5890830955292838,
+      "high": 0.698404255319149,
+      "low": 0.5393714213917757,
+      "majority_baseline": 0.5420944558521561,
+      "n": 487,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 264,
+      "se": 0.042273761944919656,
+      "threshold": 0.5,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "location_jaccard": {
+      "accuracy": 0.7061224489795919,
+      "auc": 0.759748427672956,
+      "high": 0.7864247311827957,
+      "low": 0.7038952745849297,
+      "majority_baseline": 0.5408163265306123,
+      "n": 490,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 265,
+      "se": 0.019958850928621395,
+      "threshold": 0.13333333333333333,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    },
+    "token_f1": {
+      "accuracy": 0.7122448979591837,
+      "auc": 0.7657777777777778,
+      "high": 0.7905603369346274,
+      "low": 0.7056634973129392,
+      "majority_baseline": 0.5408163265306123,
+      "n": 490,
+      "n_boot": 2000,
+      "n_clusters": 12,
+      "n_dropped": 0,
+      "n_resolved": 265,
+      "se": 0.02085509602258181,
+      "threshold": 0.47058823529411764,
+      "within_instance": {
+        "high": null,
+        "low": null,
+        "n_boot": 0,
+        "n_dropped": 2000,
+        "n_instances": 0,
+        "n_pairs": 0,
+        "se": null,
+        "value": null
+      }
+    }
+  },
+  "n_boot": 2000,
+  "n_candidates": 490,
+  "n_empty": 9,
+  "n_repos": 12,
+  "n_resolved": 265,
+  "seed": 0,
+  "shares": {
+    "resolved_missing_gold_files": {
+      "count": 17,
+      "of": 265,
+      "share": 0.06415094339622641
+    },
+    "resolved_touching_files_outside_gold": {
+      "count": 24,
+      "of": 265,
+      "share": 0.09056603773584905
+    },
+    "unresolved_touching_exactly_gold_files": {
+      "count": 112,
+      "of": 225,
+      "share": 0.49777777777777776
+    }
+  }
+}
