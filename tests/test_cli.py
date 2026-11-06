@@ -223,3 +223,16 @@ def test_within_instance_auc_in_analysis():
     assert r["n_instances"] == 2 and r["n_pairs"] == 2
     assert r["value"] == 0.5
     assert 0.0 <= r["low"] <= r["high"] <= 1.0
+
+
+def test_pair_example_closed_form():
+    spec = importlib.util.spec_from_file_location("pair", ROOT / "examples" / "pair.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    out = mod.run()
+    kept, aside = out["all files"], out["new files set aside"]
+    assert kept["file_precision"] == 0.5 and kept["extra_files"] == ["reproduce.py"]
+    assert aside["dropped_files"] == ["reproduce.py"] and aside["file_f1"] == 1.0
+    # added tokens: gold {if, not, xs, :, return, 0.0}; candidate {if, len, (, xs, ), =, =, 0,
+    # :, return, 0.0}; 5 shared, so F1 = 2 * 5 / (6 + 11)
+    assert aside["token_f1"] == pytest.approx(10 / 17)
