@@ -194,3 +194,16 @@ def test_cli_compare(demo_dir, tmp_path, capsys):
     assert rc == 0
     assert "| chrf |" in capsys.readouterr().out
     assert main(["compare", *base, "--a", "sys-a", "--b", "sys-a"]) == 1
+
+
+def test_cli_include_system(demo_dir, tmp_path):
+    out = tmp_path / "rows.jsonl"
+    args = [
+        "--candidates",
+        str(demo_dir / "candidates.jsonl"),
+        "--gold",
+        str(demo_dir / "gold.jsonl"),
+    ]
+    assert main(["score", *args, "--include-system", "sys-b", "--out", str(out)]) == 0
+    assert {json.loads(x)["system"] for x in out.read_text().splitlines()} == {"sys-b"}
+    assert main(["score", *args, "--include-system", "nobody"]) == 1

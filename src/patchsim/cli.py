@@ -29,6 +29,12 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--gold", required=True, help="gold patches, JSONL or JSON list")
         sp.add_argument("--system", help="system name to use for every candidate")
         sp.add_argument(
+            "--include-system",
+            action="append",
+            metavar="NAME",
+            help="keep only candidates from this system (repeatable)",
+        )
+        sp.add_argument(
             "--ignore-new-files",
             action="store_true",
             help="drop files a candidate creates that the gold patch does not touch",
@@ -74,8 +80,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _rows(args: argparse.Namespace) -> list[dict]:
+    cands = load_candidates(args.candidates, args.system)
+    if args.include_system:
+        cands = [c for c in cands if c.system in set(args.include_system)]
     return score_all(
-        load_candidates(args.candidates, args.system),
+        cands,
         load_gold(args.gold),
         ignore_new_files=args.ignore_new_files,
         sources=args.sources,
