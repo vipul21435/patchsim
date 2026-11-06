@@ -178,3 +178,14 @@ def test_git_header_path_with_a_space():
     assert p.paths == {"my file.py"}
     p = parse_diff("diff --git a/old name.txt b/new name.txt\nsimilarity index 100%\n")
     assert p.files[0].old_path == "old name.txt" and p.files[0].new_path == "new name.txt"
+
+
+def test_hunk_stated_past_end_of_file_is_found_by_search():
+    from patchsim.diff import apply_file_patch
+
+    src = "".join(f"l{i}\n" for i in range(1, 11))
+    fp = parse_diff("--- a/f.py\n+++ b/f.py\n@@ -25,2 +25,2 @@\n l1\n-l2\n+L2\n").files[0]
+    assert apply_file_patch(src, fp).splitlines()[:3] == ["l1", "L2", "l3"]
+    fp = parse_diff("--- a/f.py\n+++ b/f.py\n@@ -1000,2 +1000,2 @@\n l1\n-l2\n+L2\n").files[0]
+    assert apply_file_patch(src, fp) is not None
+    assert apply_file_patch(src, fp, max_offset=3) is None

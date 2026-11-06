@@ -164,7 +164,7 @@ def apply_file_patch_lines(
     pos = 0
     for h in fp.hunks:
         old = [t for tag, t in h.lines if tag != "+"]
-        want = max(h.old_start - 1, pos)
+        want = min(max(h.old_start - 1, pos), len(src))
         limit = len(src) if max_offset is None else max_offset
         found = None
         for d in range(0, limit + 1):
@@ -201,7 +201,8 @@ def apply_file_patch(source: str, fp: FilePatch, max_offset: int | None = None) 
     Each hunk is placed where its context and removed lines match the source
     exactly (trailing whitespace ignored), at the stated line or at the nearest
     offset from it, searching up to ``max_offset`` lines either way (default: the
-    whole file). Returns None if some hunk matches nowhere. No fuzz is applied.
+    whole file). A stated line past the end of the file is searched from the end.
+    Returns None if some hunk matches nowhere. No fuzz is applied.
     """
     applied = apply_file_patch_lines(source, fp, max_offset)
     return None if applied is None else applied.post
